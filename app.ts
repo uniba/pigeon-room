@@ -11,6 +11,7 @@ let wsClients: {
 const init = () => {
   console.log('hello')
   setInterval(() => {
+    // TODO: 対象を接続中のみにしたい
     ping()
   }, 10000)
 }
@@ -211,5 +212,5 @@ serve(async (req) => {
     return await httpHandler(req)
   }
 }, {
-  port: 3000
+  // port: 3000
 })

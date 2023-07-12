@@ -34,9 +34,11 @@ class superWS extends WebSocket {
     }
 }
 const wsUrl = protocol === 'https:'
-    ? `wss://${hostname}:3000/ws/`
+    ? `wss://${hostname}/ws/`
+    // ? `wss://${hostname}:3000/ws/`
     : protocol === 'http:'
-        ? `ws://${hostname}:3000/ws/`
+        ? `ws://${hostname}/ws/`
+        // ? `ws://${hostname}:3000/ws/`
         : null;
 if (wsUrl === null) {
     throw new Error(`unknown protocol: "${protocol}"`);
