@@ -1,4 +1,4 @@
-const { hostname } = window.location
+const { protocol, hostname } = window.location
 
 type msg = {
   type: 'ping' | 'pong' | 'message' | 'newClientComing' | 'init',
@@ -40,7 +40,16 @@ class superWS extends WebSocket {
 
 }
 
-const ws = new superWS(`ws://${hostname}:3000/ws/`)
+const wsUrl =
+  protocol === 'https'
+    ? `wss://${hostname}:3000/ws/`
+    : protocol === 'http'
+      ? `ws://${hostname}:3000/ws/`
+      : null
+if (wsUrl === null) {
+  throw new Error(`unknown protocol: ${protocol}`);
+}
+const ws = new superWS(wsUrl)
 
 let id: string
 let othersids: string[]

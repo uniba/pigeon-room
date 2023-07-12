@@ -1,5 +1,5 @@
 "use strict";
-const { hostname } = window.location;
+const { protocol, hostname } = window.location;
 class superWS extends WebSocket {
     constructor() {
         super(...arguments);
@@ -33,7 +33,15 @@ class superWS extends WebSocket {
         };
     }
 }
-const ws = new superWS(`ws://${hostname}:3000/ws/`);
+const wsUrl = protocol === 'https'
+    ? `wss://${hostname}:3000/ws/`
+    : protocol === 'http'
+        ? `ws://${hostname}:3000/ws/`
+        : null;
+if (wsUrl === null) {
+    throw new Error(`unknown protocol: ${protocol}`);
+}
+const ws = new superWS(wsUrl);
 let id;
 let othersids;
 ws.addEventListener('open', (e) => {
