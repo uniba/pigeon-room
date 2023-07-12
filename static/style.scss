@@ -1,0 +1,77 @@
+body{
+  font-family: sans-serif;
+  background-color: #000;
+}
+
+@keyframes flash {
+  0% {
+    background-color: #fff;
+  }
+  100% {
+    background-color: #000;
+  }
+}
+
+header{
+  display: flex;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  div#flash{
+    width: 32px;
+    height: 32px;
+    background-color: #000;
+    color: #fff;
+    &.ping{
+      animation: flash .8s;
+    }
+  }
+  h1{
+    font-size: 32px;
+    line-height: 32px;
+    color: #0c0;
+  }
+}
+
+main{
+  padding: 32px 0 0 32px;
+  button,p{
+    color: #fff;
+    cursor: pointer;
+  }
+  span{
+    color: #fff;
+  }
+  input{
+    border: 1px solid #fff;
+    color: #fff;
+  }
+  select, option{
+    border: 1px solid #fff;
+    color: #fff;
+  }
+  ul#msgs{
+    span{
+      color: #fff;
+    }
+    li{
+      margin: 16px 0 0 0;
+      & > div{
+        & > div{
+          display: flex;
+          gap:20px;
+          & > span{
+            width: 250px;
+          }
+        }
+        & > span{
+          margin: 0 0 0 28px;
+          &.empty{
+            color: #999;
+            font-style: italic;
+          }
+        }
+      }
+    }
+  }
+}

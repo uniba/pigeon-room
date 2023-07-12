@@ -1,0 +1,72 @@
+body {
+  font-family: sans-serif;
+  background-color: #000;
+}
+
+@keyframes flash {
+  0% {
+    background-color: #fff;
+  }
+  100% {
+    background-color: #000;
+  }
+}
+header {
+  display: flex;
+  align-items: center;
+  position: fixed;
+  top: 0;
+}
+header div#flash {
+  width: 32px;
+  height: 32px;
+  background-color: #000;
+  color: #fff;
+}
+header div#flash.ping {
+  animation: flash 0.8s;
+}
+header h1 {
+  font-size: 32px;
+  line-height: 32px;
+  color: #0c0;
+}
+
+main {
+  padding: 32px 0 0 32px;
+}
+main button, main p {
+  color: #fff;
+  cursor: pointer;
+}
+main span {
+  color: #fff;
+}
+main input {
+  border: 1px solid #fff;
+  color: #fff;
+}
+main select, main option {
+  border: 1px solid #fff;
+  color: #fff;
+}
+main ul#msgs span {
+  color: #fff;
+}
+main ul#msgs li {
+  margin: 16px 0 0 0;
+}
+main ul#msgs li > div > div {
+  display: flex;
+  gap: 20px;
+}
+main ul#msgs li > div > div > span {
+  width: 250px;
+}
+main ul#msgs li > div > span {
+  margin: 0 0 0 28px;
+}
+main ul#msgs li > div > span.empty {
+  color: #999;
+  font-style: italic;
+}/*# sourceMappingURL=style.css.map */
