@@ -1,21 +1,28 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts"
-import { v4 as uuidV4 } from "https://deno.land/std@0.95.0/uuid/mod.ts"
+import { serve, type ServeInit } from 'https://deno.land/std@0.190.0/http/server.ts'
+import { serveDir } from 'https://deno.land/std@0.182.0/http/file_server.ts'
+import { v4 as uuidV4 } from 'https://deno.land/std@0.95.0/uuid/mod.ts'
 import { type msg, type msgFromServer, superWS } from './lib/util.ts'
+import { load } from 'https://deno.land/std@0.194.0/dotenv/mod.ts'
 
 let wsClients: {
   client: WebSocket,
   id: string
 }[] = []
 
-const init = () => {
+let listenOptions: ServeInit = {}
+
+const init = async () => {
   console.log('hello')
+  const env = await load();
+  const port = parseInt(env['PORT']) || 443
+  listenOptions = { port }
   setInterval(() => {
-    // TODO: 対象を接続中のみにしたい
-    ping()
+    if (wsClients.length) {
+      ping()
+    }
   }, 10000)
 }
-init()
+await init()
 
 const wsHandler = (req: Request): Response => {
   const { response, socket: client } = Deno.upgradeWebSocket(req)
@@ -205,12 +212,9 @@ const httpHandler = async (request: Request): Promise<Response> => {
 
 serve(async (req) => {
   const url = new URL(req.url)
-  console.log(url.pathname)
   if (url.pathname === "/ws/") {
     return wsHandler(req)
   } else {
     return await httpHandler(req)
   }
-}, {
-  // port: 3000
-})
+}, listenOptions )
