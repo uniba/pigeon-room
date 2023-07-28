@@ -1,11 +1,14 @@
 import { serve, type ServeInit } from 'https://deno.land/std@0.190.0/http/server.ts'
 import { serveDir } from 'https://deno.land/std@0.182.0/http/file_server.ts'
 import { v4 as uuidV4 } from 'https://deno.land/std@0.95.0/uuid/mod.ts'
-import { type msg, type msgFromServer, superWS } from './lib/util.ts'
+import { type msg, type msgFromServer } from './lib/util.ts'
 import { load } from 'https://deno.land/std@0.194.0/dotenv/mod.ts'
+
+// TODO: アプリケーションが止まると接続中のクライアントが全部飛ぶのでなんとかしたい。
 
 let wsClients: {
   client: WebSocket,
+  address: string
   id: string
 }[] = []
 
@@ -13,22 +16,23 @@ let listenOptions: ServeInit = {}
 
 const init = async () => {
   console.log('hello')
-  const env = await load();
+  const env = await load()
   const port = parseInt(env['PORT']) || 443
   listenOptions = { port }
   setInterval(() => {
     if (wsClients.length) {
       ping()
     }
-  }, 10000)
+  }, 30000)
 }
 await init()
 
-const wsHandler = (req: Request): Response => {
+const wsHandler = (req: Request, address: string): Response => {
   const { response, socket: client } = Deno.upgradeWebSocket(req)
   const id = uuidV4.generate().slice(0, 8)
   wsClients.push({
     client,
+    address,
     id
   })
 
@@ -36,9 +40,10 @@ const wsHandler = (req: Request): Response => {
     sendMsg(
       {
         type: 'init',
+        address,
         body: {
           id,
-          others: wsClients.map(c=>c.id)
+          clients: wsClients.map(wc => wc.id)
         },
         to: [id],
         from: 'host'
@@ -46,12 +51,13 @@ const wsHandler = (req: Request): Response => {
     )
     sendMsg(
       {
-        type: 'newClientComing',
+        type: 'clientOpen',
+        address,
         body: {
           id,
-          others: wsClients.map(c=>c.id)
+          clients: wsClients.map(wc => wc.id)
         },
-        to: [...wsClients.filter(wc => wc.id !== id).map(wc => wc.id)],
+        to: wsClients.filter(wc => wc.id !== id).map(wc => wc.id),
         from: 'host'
       },
     )
@@ -59,7 +65,6 @@ const wsHandler = (req: Request): Response => {
 
   client.addEventListener('message', e => {
     const { to = undefined, body, type } = JSON.parse(e.data) as msg
-    console.log(`${id}からmsgきた`)
     if (type === "ping") {
       pong([id])
       return
@@ -71,17 +76,18 @@ const wsHandler = (req: Request): Response => {
         }),
         {
           client,
+          address,
           id
         }
       ]
       return
     }
     if (to) {
-      console.log({to})
       sendMsg(
         {
-          type: 'message',
+          type,
           body,
+          address,
           to,
           from: id
         }
@@ -90,8 +96,9 @@ const wsHandler = (req: Request): Response => {
     }
     sendMsg(
       {
-        type: 'message',
+        type,
         body,
+        address,
         to: 'all',
         from: id
       }
@@ -105,12 +112,13 @@ const wsHandler = (req: Request): Response => {
     ]
     sendMsg(
       {
-        type: 'newClientComing',
+        type: 'clientClose',
         body: {
           id,
-          others: wsClients.map(c=>c.id)
+          clients: wsClients.map(c=>c.id)
         },
-        to: [...wsClients.filter(wc => wc.id !== id).map(wc => wc.id)],
+        address,
+        to: wsClients.filter(wc => wc.id !== id).map(wc => wc.id),
         from: 'host'
       },
     )
@@ -122,20 +130,23 @@ const wsHandler = (req: Request): Response => {
 const sendMsg = (
   msg: msgFromServer,
 ) => {
-  const { to, body, type } = msg
+  const { address, to } = msg
   try {
     const msgBody = JSON.stringify({
       ...msg,
       timestamp: new Date().getTime(),
     })
-    console.log(msg)
     wsClients.filter(socket => {
+      // TODO: to: [`${id}@${address}`]などで送信できるようにする
+      return socket.address === address || address === 'all'
+    }).filter(socket => {
       if (to === 'all') {
         return true
       } else {
         return to.includes(socket.id)
       }
-    }).forEach(socket => {
+    }) // TODO: clientsをuniqueする必要がある。
+      .forEach(socket => {
       socket.client.send(msgBody)
     })
   } catch (_) {
@@ -146,6 +157,7 @@ const sendMsg = (
 const ping = () => {
   sendMsg({
     to: 'all',
+    address: 'all',
     type: 'ping',
     body: '',
     from: 'host'
@@ -153,15 +165,14 @@ const ping = () => {
 }
 
 const pong = (to: string[]) => {
-  console.log(`${to}へpongした。`)
   sendMsg({
     to,
     type: 'pong',
+    address: 'all',
     body: '',
     from: 'host'
   })
 }
-
 
 const httpHandler = async (request: Request): Promise<Response> => {
   const topPage = new URLPattern({ pathname: "/" })
@@ -212,8 +223,15 @@ const httpHandler = async (request: Request): Promise<Response> => {
 
 serve(async (req) => {
   const url = new URL(req.url)
-  if (url.pathname === "/ws/") {
-    return wsHandler(req)
+  if (url.pathname.startsWith("/pigeon")) {
+    const address = url.searchParams.get('address')
+    if (address) {
+      return wsHandler(req, address)
+    } else {
+      const { response, socket } = Deno.upgradeWebSocket(req)
+      socket.close(1001, 'websocket path did not have address')
+      return response
+    }
   } else {
     return await httpHandler(req)
   }

@@ -34,22 +34,22 @@ class superWS extends WebSocket {
     }
 }
 const wsUrl = protocol === 'https:'
-    ? `wss://${hostname}/ws/`
+    ? `wss://${hostname}/pigeon/pipo?address=demo`
     // ? `wss://${hostname}:3000/ws/`
     : protocol === 'http:'
-        ? `ws://${hostname}/ws/`
+        ? `ws://${hostname}:3000/pigeon/?address=demo`
         // ? `ws://${hostname}:3000/ws/`
         : null;
 if (wsUrl === null) {
     throw new Error(`unknown protocol: "${protocol}"`);
 }
-const ws = new superWS(wsUrl);
 let id;
 let othersids;
-ws.addEventListener('open', (e) => {
-    console.log({ open: e });
-});
 addEventListener('load', () => {
+    const ws = new superWS(wsUrl);
+    ws.addEventListener('open', (e) => {
+        console.log({ open: e });
+    });
     if (document) {
         document.querySelector('#sndPipo')?.addEventListener('click', () => {
             ws.sendMsg({
@@ -74,7 +74,7 @@ addEventListener('load', () => {
         });
         ws.addEventListener('message', (e) => {
             const receivedMsg = JSON.parse(e.data);
-            console.log(receivedMsg);
+            console.log({ receivedMsg });
             writeReceiveLog(receivedMsg);
             const { to = undefined, body, type, from = undefined, timestamp } = receivedMsg;
             console.log({
@@ -103,14 +103,15 @@ addEventListener('load', () => {
             try {
                 msg = JSON.parse(e.data);
                 const { type } = msg;
-                if (type == 'init' || type == 'newClientComing') {
+                console.log(type);
+                if (type == 'init' || type == 'clientOpen') {
                     if (type == 'init') {
                         id = msg.body.id;
-                        othersids = msg.body.others.filter(otherId => otherId !== id);
+                        othersids = msg.body.clients.filter(otherId => otherId !== id);
                         myIdElem.innerText = `my id: ${id}`;
                     }
-                    if (type == 'newClientComing') {
-                        othersids = msg.body.others.filter(otherId => otherId !== id);
+                    if (type == 'clientOpen') {
+                        othersids = msg.body.clients.filter(otherId => otherId !== id);
                     }
                     const selectElement = document.querySelector('select');
                     const otherIdOptions = othersids.map((id) => `<option value=${id}>${id}</option>`);

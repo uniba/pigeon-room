@@ -1,7 +1,7 @@
 const { protocol, hostname } = window.location
 
 type msg = {
-  type: 'ping' | 'pong' | 'message' | 'newClientComing' | 'init',
+  type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
   body: any,
   to: string[] | 'host' | 'all',
 }
@@ -42,24 +42,24 @@ class superWS extends WebSocket {
 
 const wsUrl =
   protocol === 'https:'
-    ? `wss://${hostname}/ws/`
+    ? `wss://${hostname}/pigeon/pipo?address=demo`
     // ? `wss://${hostname}:3000/ws/`
     : protocol === 'http:'
-      ? `ws://${hostname}/ws/`
+      ? `ws://${hostname}:3000/pigeon/?address=demo`
       // ? `ws://${hostname}:3000/ws/`
       : null
 if (wsUrl === null) {
   throw new Error(`unknown protocol: "${protocol}"`)
 }
-const ws = new superWS(wsUrl)
 
 let id: string
 let othersids: string[]
-ws.addEventListener('open', (e) => {
-  console.log({open: e})
-})
 
 addEventListener('load', () => {
+  const ws = new superWS(wsUrl)
+  ws.addEventListener('open', (e) => {
+    console.log({open: e})
+  })
   if (document) {
     document.querySelector('#sndPipo')?.addEventListener('click', () => {
       ws.sendMsg({
@@ -84,7 +84,7 @@ addEventListener('load', () => {
     })
     ws.addEventListener('message', (e) => {
       const receivedMsg = JSON.parse(e.data) as msg & { timestamp: number, from: string }
-      console.log(receivedMsg)
+      console.log({receivedMsg})
       writeReceiveLog(receivedMsg)
       const { to = undefined, body, type, from = undefined, timestamp } = receivedMsg
       console.log({
@@ -111,14 +111,15 @@ addEventListener('load', () => {
       try {
         msg = JSON.parse(e.data) as msg
         const { type } = msg
-        if (type == 'init' || type == 'newClientComing') {
+        console.log(type)
+        if (type == 'init' || type == 'clientOpen') {
           if (type == 'init') {
             id = msg.body.id
-            othersids = (msg.body.others as string[]).filter(otherId => otherId !== id)
+            othersids = (msg.body.clients as string[]).filter(otherId => otherId !== id)
             myIdElem.innerText = `my id: ${id}`
           }
-          if (type == 'newClientComing') {
-            othersids = (msg.body.others as string[]).filter(otherId => otherId !== id)
+          if (type == 'clientOpen') {
+            othersids = (msg.body.clients as string[]).filter(otherId => otherId !== id)
           }
           const selectElement = document.querySelector('select') as HTMLElement
           const otherIdOptions = othersids.map((id: string) => `<option value=${id}>${id}</option>`)

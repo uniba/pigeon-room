@@ -21,8 +21,9 @@ export class superWS extends WebSocket {
 }
 
 export type msg = {
-  type: 'ping' | 'pong' | 'message' | 'newClientComing' | 'init',
+  type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
   body: any,
+  address: string | 'all',
   to: string[] | 'all',
   from?: string | 'host'
 }
