@@ -1,5 +1,5 @@
 "use strict";
-const { protocol, hostname } = window.location;
+const { protocol, hostname, port } = window.location;
 class superWS extends WebSocket {
     constructor() {
         super(...arguments);
@@ -37,7 +37,7 @@ const wsUrl = protocol === 'https:'
     ? `wss://${hostname}/pigeon/pipo?address=demo`
     // ? `wss://${hostname}:3000/ws/`
     : protocol === 'http:'
-        ? `ws://${hostname}:3000/pigeon/?address=demo`
+        ? `ws://${hostname}:${port}/pigeon/?address=demo`
         // ? `ws://${hostname}:3000/ws/`
         : null;
 if (wsUrl === null) {
