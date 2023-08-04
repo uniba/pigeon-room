@@ -5,6 +5,7 @@ import { type msg, type msgFromServer } from './lib/util.ts'
 import { load } from 'https://deno.land/std@0.194.0/dotenv/mod.ts'
 
 // TODO: アプリケーションが止まると接続中のクライアントが全部飛ぶのでなんとかしたい。
+// https://deno.land/api@v1.36.0?s=Deno.Kv を使ってみたい。
 
 let wsClients: {
   client: WebSocket,
