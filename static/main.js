@@ -117,19 +117,18 @@ addEventListener('load', () => {
                 msg = JSON.parse(e.data);
                 const { type } = msg;
                 console.log(type);
-                if (type == 'init' || type == 'clientOpen') {
+                if (type == 'init' ||
+                    type == 'clientOpen' ||
+                    type == 'clientClose') {
                     if (type == 'init') {
                         id = msg.body.id;
-                        othersids = msg.body.clients.filter(otherId => otherId !== id);
                         myIdElem.innerText = `my id: ${id}`;
                         const titleElement = document.querySelector('title');
                         if (titleElement) {
                             titleElement.innerText = `${id} | ${titleElement.innerText}`;
                         }
                     }
-                    if (type == 'clientOpen') {
-                        othersids = msg.body.clients.filter(otherId => otherId !== id);
-                    }
+                    othersids = msg.body.clients.filter(otherId => otherId !== id);
                     const selectElement = document.querySelector('ul#to_selector');
                     selectElement.innerHTML = '';
                     Array.from(['all', 'others', id, ...othersids]).forEach(targetId => {
