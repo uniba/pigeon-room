@@ -1,16 +1,12 @@
 import { serve, type ServeInit } from 'https://deno.land/std@0.190.0/http/server.ts'
 import { serveDir } from 'https://deno.land/std@0.182.0/http/file_server.ts'
 import { v4 as uuidV4 } from 'https://deno.land/std@0.95.0/uuid/mod.ts'
-import { type msg, type msgFromServer } from './lib/util.ts'
+import { WsClient, type msg, type msgFromServer } from './lib/util.ts'
 import { load } from 'https://deno.land/std@0.194.0/dotenv/mod.ts'
 
 // TODO: アプリケーションが止まると接続中のクライアントが全部飛ぶのでなんとかしたい。
 
-let wsClients: {
-  client: WebSocket,
-  address: string
-  id: string
-}[] = []
+let wsClients: WsClient[] = []
 
 let listenOptions: ServeInit = {}
 
@@ -64,25 +60,29 @@ const wsHandler = (req: Request, address: string): Response => {
   })
 
   client.addEventListener('message', e => {
-    const { to = undefined, body, type } = JSON.parse(e.data) as msg
-    if (type === "ping") {
-      pong([id])
-      return
+    const { body, type } = JSON.parse(e.data) as msg
+    let { to = [] } = JSON.parse(e.data) as msg
+    to = [to].flat()
+    if (to.every(to => to == 'host')) {
+      if (type === "ping") {
+        pong([id])
+        return
+      }
+      if (type === "pong") {
+        wsClients = [
+          ...wsClients.filter(c => {
+            return c.id !== id
+          }),
+          {
+            client,
+            address,
+            id
+          }
+        ]
+        return
+      }
     }
-    if (type === "pong") {
-      wsClients = [
-        ...wsClients.filter(c => {
-          return c.id !== id
-        }),
-        {
-          client,
-          address,
-          id
-        }
-      ]
-      return
-    }
-    if (to) {
+    if (!to.every(to => to == 'host')) {
       sendMsg(
         {
           type,
@@ -92,17 +92,8 @@ const wsHandler = (req: Request, address: string): Response => {
           from: id
         }
       )
-      return
     }
-    sendMsg(
-      {
-        type,
-        body,
-        address,
-        to: 'all',
-        from: id
-      }
-    )
+    return
   })
   client.addEventListener('close', () => {
     wsClients = [
@@ -130,23 +121,39 @@ const wsHandler = (req: Request, address: string): Response => {
 const sendMsg = (
   msg: msgFromServer,
 ) => {
-  const { address, to } = msg
+  const { address, from, to } = msg
+  let clientsForSend: WsClient[] = []
   try {
     const msgBody = JSON.stringify({
       ...msg,
       timestamp: new Date().getTime(),
     })
-    wsClients.filter(socket => {
+    const clientsInTargetAddress: WsClient[] = wsClients.filter(socket => {
       // TODO: to: [`${id}@${address}`]などで送信できるようにする
+      // TODO: addressが任意なので、?address=allで接続されると困るのをどうにかする。
       return socket.address === address || address === 'all'
-    }).filter(socket => {
-      if (to === 'all') {
-        return true
-      } else {
-        return to.includes(socket.id)
+    })
+
+    if (to.includes('all') || to.includes('others')) {
+      if (to.includes('all') || to.includes(from)) {
+        clientsForSend.push(...clientsInTargetAddress)
+      } else if (to.includes('others')) {
+        clientsForSend.push(...clientsInTargetAddress.filter(client => client.id !== from))
       }
-    }) // TODO: clientsをuniqueする必要がある。
-      .forEach(socket => {
+    } else {
+      clientsForSend.push(...clientsInTargetAddress.filter(client => to.includes(client.id)))
+    }
+
+    clientsForSend = clientsForSend.reduce((
+      previousClients: WsClient[],
+      targetClient: WsClient
+    ) => {
+      const isUniqueClient = !(previousClients.map(ws => ws.id).includes(targetClient.id))
+      if (isUniqueClient) previousClients.push(targetClient)
+      return previousClients
+    }, [])
+
+    clientsForSend.forEach(socket => {
       socket.client.send(msgBody)
     })
   } catch (_) {
@@ -156,7 +163,7 @@ const sendMsg = (
 
 const ping = () => {
   sendMsg({
-    to: 'all',
+    to: ['all'],
     address: 'all',
     type: 'ping',
     body: '',

@@ -20,13 +20,23 @@ export class superWS extends WebSocket {
   }
 }
 
+export type clientId = string
+export type address = string
+
 export type msg = {
   type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
   body: any,
-  address: string | 'all',
-  to: string[] | 'all',
-  from?: string | 'host'
+  address: address | 'all',
+  to: ( 'all' | 'others' | clientId )[],
+  from?: clientId | 'host'
 }
-export type msgFromServer = msg & {
-  from: string | 'host'
+
+export type msgFromServer = Pick< msg, 'type' | 'body' | 'address' | 'to' > & {
+  from: clientId | 'host'
+}
+
+export type WsClient = {
+  client: WebSocket,
+  address: address
+  id: clientId
 }

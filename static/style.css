@@ -1,6 +1,7 @@
 body {
   font-family: sans-serif;
   background-color: #000;
+  font-family: "Noto Sans Mono", monospace;
 }
 
 @keyframes flash {
@@ -11,62 +12,167 @@ body {
     background-color: #000;
   }
 }
-header {
+button,
+label {
+  border: 1px solid #fff;
+  color: #fff;
+  padding: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  height: 24px;
+}
+
+p {
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+span {
+  font-size: 12px;
+  color: #fff;
+}
+
+input {
+  border: 1px solid #fff;
+  color: #fff;
+}
+
+header#global_header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  -webkit-backdrop-filter: blur(2px);
+          backdrop-filter: blur(2px);
+  z-index: 1;
+}
+header#global_header > div {
   display: flex;
   align-items: center;
-  position: fixed;
-  top: 0;
+  padding: 0 0 0 29px;
 }
-header div#flash {
-  width: 32px;
+header#global_header > div > div#flash {
+  width: 30px;
   height: 32px;
   background-color: #000;
   color: #fff;
+  position: fixed;
+  z-index: 0;
+  top: 0;
+  left: 0;
 }
-header div#flash.ping {
+header#global_header > div > div#flash.ping {
   animation: flash 0.8s;
 }
-header h1 {
+header#global_header > div > h1 {
   font-size: 32px;
   line-height: 32px;
-  color: #0c0;
+  color: #0d0;
+}
+header#global_header > section.property {
+  padding: 0 0 12px 32px;
+  margin: 8px 0 0 0;
+  width: auto;
+  box-sizing: border-box;
+}
+header#global_header > section.property > p#othersid {
+  word-break: break-all;
+}
+header#global_header > section.property > div.sample_message {
+  margin: 4px 0 0 0;
+  display: flex;
+  gap: 4px;
+}
+header#global_header > section.property > div.massaging {
+  margin: 4px 0 0 0;
+}
+header#global_header > section.property > div.massaging > section#selector_wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+header#global_header > section.property > div.massaging > section#selector_wrap ul#to_selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 4px;
+}
+header#global_header > section.property > div.massaging > section#selector_wrap ul#to_selector input {
+  display: none;
+}
+header#global_header > section.property > div.massaging > section#selector_wrap ul#to_selector input:checked + label {
+  background-color: #fff;
+  color: #444;
+  border: 1px solid #444;
+}
+header#global_header > section.property > div.massaging section#input {
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+header#global_header > section.property > div.massaging section#input input#msgBodyInput {
+  height: 24px;
 }
 
 main {
-  padding: 32px 0 0 32px;
-}
-main button, main p {
-  color: #fff;
-  cursor: pointer;
-}
-main span {
-  color: #fff;
-}
-main input {
-  border: 1px solid #fff;
-  color: #fff;
-}
-main select, main option {
-  border: 1px solid #fff;
-  color: #fff;
+  padding: 0 0 0 32px;
 }
 main ul#msgs span {
   color: #fff;
 }
 main ul#msgs li {
-  margin: 16px 0 0 0;
+  margin: 12px 0;
 }
-main ul#msgs li > div > div {
-  display: flex;
-  gap: 20px;
+main ul#msgs li > div > * {
+  word-break: break-all;
 }
-main ul#msgs li > div > div > span {
-  width: 250px;
+main ul#msgs li > div > header {
+  margin: 0 0 8px 0;
+  border-left: 2px solid;
+  padding: 0 0 0 12px;
 }
-main ul#msgs li > div > span {
-  margin: 0 0 0 28px;
+main ul#msgs li > div > header > span {
+  display: block;
+  font-size: 12px;
+  box-sizing: border-box;
+  color: #c8c8c8;
 }
-main ul#msgs li > div > span.empty {
+main ul#msgs li > div > p.message_body {
+  font-size: 16px;
+}
+main ul#msgs li > div > p.message_body span {
+  width: 16px;
+}
+main ul#msgs li > div > p.message_body.empty {
   color: #999;
   font-style: italic;
+}
+main ul#msgs li > div > p.message_body.empty span {
+  color: #999;
+}
+main ul#msgs li > div.message_type.ping header, main ul#msgs li > div.message_type.pong header {
+  border-color: #080;
+}
+main ul#msgs li > div.message_type.init header {
+  border-color: #f30;
+}
+main ul#msgs li > div.message_type.message header {
+  border-color: #0f0;
+}
+main ul#msgs li > div.message_type.clientOpen header {
+  border-color: #fd0;
+}
+main ul#msgs li > div.message_type.clientClose header {
+  border-color: #09f;
+}
+main button#clear {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  background-color: #000;
+}
+main button#clear:hover {
+  background-color: #f42;
 }/*# sourceMappingURL=style.css.map */

@@ -1,6 +1,7 @@
 body{
   font-family: sans-serif;
   background-color: #000;
+  font-family: 'Noto Sans Mono', monospace;
 }
 
 @keyframes flash {
@@ -12,66 +13,180 @@ body{
   }
 }
 
-header{
-  display: flex;
-  align-items: center;
-  position: fixed;
+button,
+label{
+  border: 1px solid #fff;
+  color: #fff;
+  padding: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  height: 24px;
+}
+p{
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+span{
+  font-size: 12px;
+  color: #fff;
+}
+input{
+  border: 1px solid #fff;
+  color: #fff;
+}
+
+header#global_header{
+  position: sticky;
   top: 0;
-  div#flash{
-    width: 32px;
-    height: 32px;
-    background-color: #000;
-    color: #fff;
-    &.ping{
-      animation: flash .8s;
+  left: 0;
+  box-sizing: border-box;
+  backdrop-filter: blur(2px);
+  z-index: 1;
+  & > div{
+    display: flex;
+    align-items: center;
+    padding: 0 0 0 29px;
+    & > div#flash{
+      width: 30px;
+      height: 32px;
+      background-color: #000;
+      color: #fff;
+      position: fixed;
+      z-index: 0;
+      top: 0;
+      left: 0;
+      &.ping{
+        animation: flash .8s;
+      }
+    }
+    & > h1{
+      font-size: 32px;
+      line-height: 32px;
+      color: #0d0;
     }
   }
-  h1{
-    font-size: 32px;
-    line-height: 32px;
-    color: #0c0;
-  }
+  & > section.property{
+    padding: 0 0 12px 32px;
+    margin: 8px 0 0 0;
+    width: auto;
+    box-sizing: border-box;
+    & > p#othersid{
+      word-break: break-all;
+    }
+    & > div.sample_message{
+      margin: 4px 0 0 0;
+      display: flex;
+      gap: 4px;
+    }
+    & > div.massaging{
+      margin: 4px 0 0 0;
+      & > section#selector_wrap{
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        ul#to_selector{
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 4px;
+          input{
+            display: none;
+          }
+          input:checked{
+            & + label{
+              background-color: #fff;
+              color: #444;
+              border: 1px solid #444;
+            }
+          }
+        }
+      }
+      section#input{
+        margin: 8px 0 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        input#msgBodyInput{
+          height: 24px;
+        }
+      }
+    }
+    }
 }
 
 main{
-  padding: 32px 0 0 32px;
-  button,p{
-    color: #fff;
-    cursor: pointer;
-  }
-  span{
-    color: #fff;
-  }
-  input{
-    border: 1px solid #fff;
-    color: #fff;
-  }
-  select, option{
-    border: 1px solid #fff;
-    color: #fff;
-  }
+  padding: 0 0 0 32px;
   ul#msgs{
     span{
       color: #fff;
     }
     li{
-      margin: 16px 0 0 0;
+      margin: 12px 0;
       & > div{
-        & > div{
-          display: flex;
-          gap:20px;
+        & > * {
+          word-break: break-all;
+        }
+        & > header{
+          margin: 0 0 8px 0;
+          border-left: 2px solid;
+          padding: 0 0 0 12px;
           & > span{
-            width: 250px;
+            display: block;
+            font-size: 12px;
+            box-sizing: border-box;
+            color: #c8c8c8;
           }
         }
-        & > span{
-          margin: 0 0 0 28px;
+        & > p.message_body{
+          span{
+            width: 16px;
+          }
+          font-size: 16px;
           &.empty{
+            span{
+              color: #999;
+            }
             color: #999;
             font-style: italic;
           }
         }
+        &.message_type.ping,
+        &.message_type.pong{
+          header{
+            border-color: #080;
+          }
+        }
+        &.message_type.init{
+          header{
+            border-color: #f30;
+          }
+        }
+        &.message_type.message{
+          header{
+            border-color: #0f0;
+          }
+        }
+        &.message_type.clientOpen{
+          header{
+            border-color: #fd0;
+          }
+        }
+        &.message_type.clientClose{
+          header{
+            border-color: #09f;
+          }
+        }
       }
+    }
+  }
+  button#clear{
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    background-color: #000;
+    &:hover{
+      background-color: #f42;
     }
   }
 }

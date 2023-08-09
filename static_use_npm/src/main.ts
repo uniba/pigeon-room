@@ -3,7 +3,7 @@ const { protocol, hostname } = window.location
 type msg = {
   type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
   body: any,
-  to: string[] | 'host' | 'all',
+  to: ( string | 'host' | 'all' | 'others' )[],
 }
 
 class superWS extends WebSocket {
@@ -23,14 +23,14 @@ class superWS extends WebSocket {
     }
   }
 
-  ping = (to: string[] | 'host' | 'all') => {
+  ping = (to:( string | 'host' | 'all' | 'others' )[]) => {
     this.sendMsg({
       to,
       type: 'ping',
       body: ''
     })
   }
-  pong = (to: string[] | 'host' | 'all') => {
+  pong = (to:( string | 'host' | 'all' | 'others' )[]) => {
     this.sendMsg({
       to,
       type: 'pong',
@@ -63,37 +63,49 @@ addEventListener('load', () => {
   if (document) {
     document.querySelector('#sndPipo')?.addEventListener('click', () => {
       ws.sendMsg({
-        to: 'all',
+        to: ['all'],
         body: 'pipo',
         type: 'message'
       })
     })
+    document.querySelector('#clear')?.addEventListener('click', () => {
+      const msgList = document.querySelector('#msgs') as HTMLElement
+      if (msgList) {
+        const msgListClone = msgList.cloneNode(false)
+        msgList.parentNode?.replaceChild( msgListClone , msgList )
+      }
+    })
     document.querySelector('#sndMsg')?.addEventListener('click', () => {
-      const { value: to } = document.querySelector('#to_selector') as HTMLSelectElement
+      const inputs = document.querySelectorAll('#to_selector > li > input[name="to"]') as NodeListOf<HTMLInputElement>
+      const to = Array.from(inputs).reduce((prev: string[], inputElement: HTMLInputElement) => {
+        if (inputElement.checked) {
+          prev.push(inputElement.value)
+        }
+        return prev
+      }, [])
       const msgBodyInput = document.querySelector('#msgBodyInput') as HTMLInputElement
       const { value: body } = msgBodyInput
       ws.sendMsg({
-        to: to == 'all' ? to : [to],
+        to: [to].flat(),
         body,
         type: 'message'
       })
       msgBodyInput.value = ''
     })
-    document.querySelector('#ping_to_server')?.addEventListener('click', () => {
-      ws.ping('host')
+    document.querySelector('#ping_to_host')?.addEventListener('click', () => {
+      ws.ping(['host'])
+    })
+    document.querySelector('#ping_to_others')?.addEventListener('click', () => {
+      ws.ping(['others'])
     })
     ws.addEventListener('message', (e) => {
       const receivedMsg = JSON.parse(e.data) as msg & { timestamp: number, from: string }
-      console.log({receivedMsg})
       writeReceiveLog(receivedMsg)
       const { to = undefined, body, type, from = undefined, timestamp } = receivedMsg
-      console.log({
-        from,
-        type
-      })
       if (type == 'ping') {
-        if (from === undefined) ws.pong('all')
-        if (from === 'host') ws.pong('host')
+        if (from === undefined) ws.pong(['all'])
+        else if (from === 'host') ws.pong(['host'])
+        else ws.pong([from])
         document.querySelector('#flash')?.classList.add('ping')
         setTimeout(() => {
           document.querySelector('#flash')?.classList.remove('ping')
@@ -107,7 +119,7 @@ addEventListener('load', () => {
       }
       let msg
       const myIdElem = document.querySelector('p#myid') as HTMLElement
-      const othersElem = document.querySelector('p#others') as HTMLElement
+      const othersElem = document.querySelector('p#othersid') as HTMLElement
       try {
         msg = JSON.parse(e.data) as msg
         const { type } = msg
@@ -117,23 +129,35 @@ addEventListener('load', () => {
             id = msg.body.id
             othersids = (msg.body.clients as string[]).filter(otherId => otherId !== id)
             myIdElem.innerText = `my id: ${id}`
+            const titleElement = document.querySelector('title') as HTMLElement
+            if (titleElement) {
+              titleElement.innerText = `${id} | ${titleElement.innerText}`
+            }
           }
           if (type == 'clientOpen') {
             othersids = (msg.body.clients as string[]).filter(otherId => otherId !== id)
           }
-          const selectElement = document.querySelector('select') as HTMLElement
-          const otherIdOptions = othersids.map((id: string) => `<option value=${id}>${id}</option>`)
-          selectElement.innerHTML = `<option value=all>all</option>${otherIdOptions.join('')}`
+          const selectElement = document.querySelector('ul#to_selector') as HTMLElement
+          selectElement.innerHTML = ''
+          Array.from(['all', 'others', id, ...othersids]).forEach(targetId => {
+            const optionElement = document.createElement('li')
+            const inputElement = document.createElement('input')
+            inputElement.innerText = targetId
+            inputElement.setAttribute('type', 'checkbox')
+            inputElement.setAttribute('value', targetId)
+            inputElement.setAttribute('id', `selection_${targetId}`)
+            inputElement.setAttribute('name', 'to')
+            const labelElement = document.createElement('label')
+            labelElement.setAttribute('for', `selection_${targetId}`)
+            labelElement.innerHTML = targetId == id ? 'me' : targetId
+            optionElement.append(inputElement, labelElement)
+            selectElement.append(optionElement)
+          })
           othersElem.innerText = `others ids: ${JSON.stringify(othersids)}`
         }
       } catch (error) {
         console.log(e)
       }
-      
-      // const li = document.createElement('li')
-      // const msgBody = document.createElement('p')
-      // msgBody.innerText = e.data
-      // document.querySelector('#msgs')
     })
   }
 })
@@ -145,13 +169,14 @@ const writeTransLog = (
   const bodyString = JSON.stringify(body)
   console.log(JSON.stringify(body))
   const msgLi = document.createElement('li')
-  msgLi.innerHTML = `<div>
-    <div>
-      <span> ${to} &lt;&lt;&lt; ${id}</span>
-      <span>${type}</span>
-      <span>${timestamp}</span>
-    </div>
-    <span class="${bodyString == "\"\"" && 'empty'}">${bodyString == "\"\"" ? 'this message has no body' : bodyString }</span>
+  msgLi.innerHTML = `<div class="message_type ${type} trans">
+    <header>
+      <span>▲ ${to} &lt;&lt;&lt; ${id}</span>
+      <span>${type} @ ${timestamp}</span>
+    </header>
+    <p class="message_body ${bodyString == "\"\"" && 'empty'}">
+      ${bodyString == "\"\"" ? 'this message has no body' : bodyString }
+    </p>
   </div>`
   document.querySelector('#msgs')?.append(msgLi)
 }
@@ -162,42 +187,14 @@ const writeReceiveLog = (
   const { to = undefined, body, type, from = undefined, timestamp } = targetMsg
   const bodyString = JSON.stringify(body)
   const msgLi = document.createElement('li')
-      msgLi.innerHTML = `<div>
-        <div>
-          <span>${from} &gt;&gt;&gt; ${to}</span>
-          <span>${type}</span>
-          <span>${timestamp}</span>
-        </div>
-        <span class="${bodyString == "\"\"" && 'empty'}">${bodyString == "\"\"" ? 'this message has no body' : bodyString }</span>
+      msgLi.innerHTML = `<div class="message_type ${type} receive">
+        <header>
+          <span>▼ ${from} &gt;&gt;&gt; ${to}</span>
+          <span>${type} @ ${timestamp}</span>
+        </header>
+        <p class="message_body ${bodyString == "\"\"" && 'empty'}">
+          ${bodyString == "\"\"" ? 'this message has no body' : bodyString }
+        </p>
       </div>`
       document.querySelector('#msgs')?.append(msgLi)
 }
-
-// const sndmsg = () => {
-//   ws.send(JSON.stringify({msg: 'hello ws'}))
-// }
-
-// type msg = {
-//   type: string,
-//   body: any,
-//   to: string[] | 'host' | 'all'
-// }
-
-
-
-// const ping = (to: string[], ws: superWS) => {
-//   console.log('send ping')
-//   ws.sendMsg({
-//     to,
-//     type: 'ping',
-//     body: ''
-//   })
-// }
-// const pong = (to: string[], ws: superWS) => {
-//   console.log('send pong')
-//   ws.sendMsg({
-//     to,
-//     type: 'pong',
-//     body: ''
-//   })
-// }
