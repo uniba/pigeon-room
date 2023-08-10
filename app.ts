@@ -3,6 +3,7 @@ import { serveDir } from 'https://deno.land/std@0.182.0/http/file_server.ts'
 import { v4 as uuidV4 } from 'https://deno.land/std@0.95.0/uuid/mod.ts'
 import { WsClient, type msg, type msgFromServer } from './lib/util.ts'
 import { load } from 'https://deno.land/std@0.194.0/dotenv/mod.ts'
+import { transpile } from 'https://deno.land/x/emit@0.25.0/mod.ts'
 
 // TODO: アプリケーションが止まると接続中のクライアントが全部飛ぶのでなんとかしたい。
 // https://deno.land/api@v1.36.0?s=Deno.Kv を使ってみたい。
@@ -189,16 +190,24 @@ const httpHandler = async (request: Request): Promise<Response> => {
   const { pathname } = new URL(request.url) 
 
   if (pathname.startsWith("/static")) {
+    if (pathname.match('/static/index.js')) {
+      const url = new URL('./static/index.ts', import.meta.url)
+      const result = await transpile(url)
+      const headers = new Headers()
+      headers.set('Content-Type', 'application/javascript')
+      headers.set('Charset', 'UTF-8')
+      headers.set('Access-Control-Allow-Origin', '*')
+      return new Response(
+        result.get(url.href),
+        {
+          status: 200,
+          headers
+        }
+      )
+    }
     return await serveDir(request, {
       fsRoot: 'static',
       urlRoot: 'static',
-      enableCors: true
-    })
-  }
-  if (pathname.startsWith("/static_use_npm")) {
-    return await serveDir(request, {
-      fsRoot: 'static_use_npm',
-      urlRoot: 'static_use_npm',
       enableCors: true
     })
   }
@@ -210,7 +219,7 @@ const httpHandler = async (request: Request): Promise<Response> => {
 
   if (topPageMatch) {
     headers.set('Content-Type', 'text/html')
-    const htmlFile = await Deno.readFile('./index.html');
+    const htmlFile = await Deno.readFile('./static/index.html');
     const decoder = new TextDecoder()
     return new Response(
       decoder.decode(htmlFile),

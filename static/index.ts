@@ -1,5 +1,4 @@
-const { protocol, hostname } = window.location
-
+const { protocol, hostname, port } = window.location
 type msg = {
   type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
   body: any,
@@ -42,10 +41,10 @@ class superWS extends WebSocket {
 
 const wsUrl =
   protocol === 'https:'
-    ? `wss://${hostname}/pigeon/pipo?address=demo`
+    ? `wss://${hostname}:${port}/pigeon/pipo?address=demo`
     // ? `wss://${hostname}:3000/ws/`
     : protocol === 'http:'
-      ? `ws://${hostname}:3000/pigeon/?address=demo`
+      ? `ws://${hostname}:${port}/pigeon/?address=demo`
       // ? `ws://${hostname}:3000/ws/`
       : null
 if (wsUrl === null) {
@@ -188,14 +187,14 @@ const writeReceiveLog = (
   const { to = undefined, body, type, from = undefined, timestamp } = targetMsg
   const bodyString = JSON.stringify(body)
   const msgLi = document.createElement('li')
-      msgLi.innerHTML = `<div class="message_type ${type} receive">
-        <header>
-          <span>▼ ${from} &gt;&gt;&gt; ${to}</span>
-          <span>${type} @ ${timestamp}</span>
-        </header>
-        <p class="message_body ${bodyString == "\"\"" && 'empty'}">
-          ${bodyString == "\"\"" ? 'this message has no body' : bodyString }
-        </p>
-      </div>`
-      document.querySelector('#msgs')?.append(msgLi)
+  msgLi.innerHTML = `<div class="message_type ${type} receive">
+    <header>
+      <span>▼ ${from} &gt;&gt;&gt; ${to}</span>
+      <span>${type} @ ${timestamp}</span>
+    </header>
+    <p class="message_body ${bodyString == "\"\"" && 'empty'}">
+      ${bodyString == "\"\"" ? 'this message has no body' : bodyString }
+    </p>
+  </div>`
+  document.querySelector('#msgs')?.append(msgLi)
 }
