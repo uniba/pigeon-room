@@ -2,20 +2,12 @@
 
 🕊️ _pigeons are flying around the tower_
 
-<<<<<<< HEAD
-DEMO (wss) -> wss://pigeon-room.deno.dev/pigeon/?address=demo  
-=======
 DEMO (wss) -> wss://pigeon-room.deno.dev/pigeon/?address=demo
->>>>>>> origin
 DEMO (https) -> <https://pigeon-room.deno.dev/>
 
 ## 接続
 
-<<<<<<< HEAD
-`ws(s)://${hostname}/pigeon/?address=${address}`という形式のURLで接続する。`${address}`は任意の文字列を指定し、同じ`${address}`で別のクライアントが接続することで、クライアント同士はクライアントのIDや全員を指定してリアルタイムに通信ができる。
-=======
 `ws(s)://${hostname}/pigeon/?address=${address}`という形式のURLで接続する。`${address}`は任意の文字列を指定し、同じ`${address}`に別のクライアントが接続することで、クライアント同士はクライアントのIDや全員を指定してリアルタイムに通信ができる。
->>>>>>> origin
 
 ```JavaScript
 const hostname = 'hostname'
