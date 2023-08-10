@@ -192,7 +192,9 @@ const httpHandler = async (request: Request): Promise<Response> => {
   if (pathname.startsWith("/static")) {
     if (pathname.match('/static/index.js')) {
       const url = new URL('./static/index.ts', import.meta.url)
-      const result = await transpile(url)
+      const result = await transpile(url, {
+        cacheRoot: '/'
+      })
       const headers = new Headers()
       headers.set('Content-Type', 'application/javascript')
       headers.set('Charset', 'UTF-8')
