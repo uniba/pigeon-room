@@ -3,7 +3,7 @@ import {
   type ServeInit,
 } from "https://deno.land/std@0.190.0/http/server.ts";
 import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts";
-import { v4 as uuidV4 } from "https://deno.land/std@0.95.0/uuid/mod.ts";
+import { generateRandomString as randomId } from "https://deno.land/x/random_string_generator@v0.0.1/mod.ts";
 import { type msg, type msgFromServer, WsClient } from "./lib/util.ts";
 import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
 import { transpile } from "https://deno.land/x/emit@0.25.0/mod.ts";
@@ -30,7 +30,7 @@ await init();
 
 const wsHandler = (req: Request, address: string): Response => {
   const { response, socket: client } = Deno.upgradeWebSocket(req);
-  const id = uuidV4.generate().slice(0, 8);
+  const id = randomId(8);
   wsClients.push({
     client,
     address,
