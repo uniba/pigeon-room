@@ -68,7 +68,7 @@ const wsHandler = (req: Request, address: string): Response => {
     const { body, type } = JSON.parse(e.data) as Msg;
     let { to = [] } = JSON.parse(e.data) as Msg;
     to = [to].flat();
-    if (to.every((to) => to == "host")) {
+    if (to.every((to) => to === "host")) {
       if (type === "ping") {
         pong([id]);
         return;
@@ -87,7 +87,7 @@ const wsHandler = (req: Request, address: string): Response => {
         return;
       }
     }
-    if (!to.every((to) => to == "host")) {
+    if (!to.every((to) => to === "host")) {
       sendMsg(
         {
           type,
