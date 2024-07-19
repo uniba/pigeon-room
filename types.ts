@@ -1,20 +1,20 @@
-export type clientId = string;
-export type address = string;
+export type ClientId = string;
+export type Address = string;
 
-export type msg = {
+export type Msg = {
   type: "ping" | "pong" | "message" | "clientOpen" | "clientClose" | "init";
   body: any;
-  address: address | "all";
-  to: ("all" | "others" | clientId)[];
-  from?: clientId | "host";
+  address: Address | "all";
+  to: ("all" | "others" | ClientId)[];
+  from?: ClientId | "host";
 };
 
-export type msgFromServer = Pick<msg, "type" | "body" | "address" | "to"> & {
-  from: clientId | "host";
+export type MsgFromServer = Pick<Msg, "type" | "body" | "address" | "to"> & {
+  from: ClientId | "host";
 };
 
 export type WsClient = {
   client: WebSocket;
-  address: address;
-  id: clientId;
+  address: Address;
+  id: ClientId;
 };

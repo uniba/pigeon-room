@@ -4,7 +4,7 @@ import {
 } from "https://deno.land/std@0.190.0/http/server.ts";
 import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts";
 import { generateRandomString as randomId } from "https://deno.land/x/random_string_generator@v0.0.1/mod.ts";
-import { type msg, type msgFromServer, WsClient } from "./types.ts";
+import { type Msg, type MsgFromServer, WsClient } from "./types.ts";
 import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
 import { transpile } from "https://deno.land/x/emit@0.25.0/mod.ts";
 
@@ -65,8 +65,8 @@ const wsHandler = (req: Request, address: string): Response => {
   });
 
   client.addEventListener("message", (e) => {
-    const { body, type } = JSON.parse(e.data) as msg;
-    let { to = [] } = JSON.parse(e.data) as msg;
+    const { body, type } = JSON.parse(e.data) as Msg;
+    let { to = [] } = JSON.parse(e.data) as Msg;
     to = [to].flat();
     if (to.every((to) => to == "host")) {
       if (type === "ping") {
@@ -124,7 +124,7 @@ const wsHandler = (req: Request, address: string): Response => {
 };
 
 const sendMsg = (
-  msg: msgFromServer,
+  msg: MsgFromServer,
 ) => {
   const { address, from, to } = msg;
   let clientsForSend: WsClient[] = [];
