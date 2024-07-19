@@ -192,6 +192,22 @@ const pong = (to: string[]) => {
   });
 };
 
+serve(async (req) => {
+  const url = new URL(req.url);
+  if (url.pathname.startsWith("/pigeon")) {
+    const address = url.searchParams.get("address");
+    if (address) {
+      return wsHandler(req, address);
+    } else {
+      const { response, socket } = Deno.upgradeWebSocket(req);
+      socket.close(1001, "websocket path did not have address");
+      return response;
+    }
+  } else {
+    return await httpHandler(req);
+  }
+}, listenOptions);
+
 const httpHandler = async (request: Request): Promise<Response> => {
   const topPage = new URLPattern({ pathname: "/" });
   const topPageMatch = topPage.exec(request.url);
@@ -248,19 +264,3 @@ const httpHandler = async (request: Request): Promise<Response> => {
     },
   );
 };
-
-serve(async (req) => {
-  const url = new URL(req.url);
-  if (url.pathname.startsWith("/pigeon")) {
-    const address = url.searchParams.get("address");
-    if (address) {
-      return wsHandler(req, address);
-    } else {
-      const { response, socket } = Deno.upgradeWebSocket(req);
-      socket.close(1001, "websocket path did not have address");
-      return response;
-    }
-  } else {
-    return await httpHandler(req);
-  }
-}, listenOptions);
