@@ -1,26 +1,150 @@
-import { MsgFromServer, WsClient } from "./types.ts";
+import { type Msg, type MsgFromServer, WsClient } from "./types.ts";
+import { generateRandomString as randomId } from "https://deno.land/x/random_string_generator@v0.0.1/mod.ts";
 
 type PigeonRoomOptions = {
-  port?: number;
-  wsPath?: string;
+  pingInterval: number;
+  reservedAddress: string[];
 };
 
 export class PigeonRoom {
   public options: PigeonRoomOptions;
-  public httpHandler: (req: Request) => Promise<Response> | Response =
-    this.defaultHttpHandler;
   private wsClients: WsClient[];
 
-  constructor(options?: PigeonRoomOptions) {
-    this.options = options || {
-      port: 443,
-      wsPath: "./pigeon",
-    };
-    this.wsClients = [];
+  constructor(options?: Partial<PigeonRoomOptions>) {
+    if (!options) options = {};
 
-    setInterval(() => {
-      if (this.wsClients.length) this.ping();
-    }, 30000);
+    this.options = {
+      pingInterval: 30000,
+      reservedAddress: ["all"],
+      ...options,
+    };
+
+    if (!this.options.reservedAddress.includes("all")) {
+      this.options.reservedAddress.push("all");
+    }
+
+    this.wsClients = [];
+    if (this.options.pingInterval > 0) {
+      setInterval(() => {
+        if (this.wsClients.length) this.ping();
+      }, this.options.pingInterval);
+    }
+  }
+
+  public open(req: Request, address: string | null): Response {
+    const { response, socket: client } = Deno.upgradeWebSocket(req);
+    if (!address) address = "";
+
+    const id = randomId(8);
+    this.wsClients.push({
+      client,
+      address,
+      id,
+    });
+
+    client.addEventListener("open", () => {
+      if (address === "") {
+        client.close(
+          1008,
+          `Error: An address was not provided. Please specify an address.`,
+        );
+        return;
+      } else if (this.options.reservedAddress.includes(address)) {
+        console.log({ client });
+        client.close(
+          1008,
+          `Error: The address '${address}' is a reserved word and cannot be used as an address.`,
+        );
+        console.log({ client });
+        return;
+      }
+      this.sendMessage(
+        {
+          type: "init",
+          address,
+          body: {
+            id,
+            clients: this.wsClients.map((wc) => wc.id),
+          },
+          to: [id],
+          from: "host",
+        },
+      );
+      this.sendMessage(
+        {
+          type: "clientOpen",
+          address,
+          body: {
+            id,
+            clients: this.wsClients.map((wc) => wc.id),
+          },
+          to: this.wsClients.filter((wc) => wc.id !== id).map((wc) => wc.id),
+          from: "host",
+        },
+      );
+    });
+
+    client.addEventListener("message", (e) => {
+      const { body, type } = JSON.parse(e.data) as Msg;
+      let { to = [] } = JSON.parse(e.data) as Msg;
+      to = [to].flat();
+      if (to.every((to) => to === "host")) {
+        if (type === "ping") {
+          this.pong([id]);
+          return;
+        }
+        if (type === "pong") {
+          this.wsClients = [
+            ...this.wsClients.filter((c) => {
+              return c.id !== id;
+            }),
+            {
+              client,
+              address,
+              id,
+            },
+          ];
+          return;
+        }
+      }
+      if (!to.every((to) => to === "host")) {
+        this.sendMessage(
+          {
+            type,
+            body,
+            address,
+            to,
+            from: id,
+          },
+        );
+      }
+      return;
+    });
+
+    client.addEventListener("close", (e) => {
+      if (e) {
+        console.log({ e });
+      }
+      this.wsClients = [
+        ...this.wsClients.filter((c) => {
+          return c.id !== id;
+        }),
+      ];
+      this.sendMessage(
+        {
+          type: "clientClose",
+          body: {
+            id,
+            clients: this.wsClients.map((c) => c.id),
+          },
+          address,
+          to: this.wsClients.filter((wc) => wc.id !== id).map((wc) => wc.id),
+          from: "host",
+        },
+      );
+    });
+
+    return response;
   }
 
   public sendMessage(message: MsgFromServer) {
@@ -34,7 +158,6 @@ export class PigeonRoom {
       const clientsInTargetAddress: WsClient[] = this.wsClients.filter(
         (socket) => {
           // TODO: to: [`${id}@${address}`]などで送信できるようにする
-          // TODO: addressが任意なので、?address=allで接続されると困るのをどうにかする。
           return socket.address === address || address === "all";
         },
       );
@@ -90,20 +213,5 @@ export class PigeonRoom {
       body: "",
       from: "host",
     });
-  }
-
-  private defaultHttpHandler(_request: Request): Response {
-    const headers = new Headers();
-    headers.set("Content-Type", "text/plain");
-    headers.set("Charset", "UTF-8");
-    headers.set("Access-Control-Allow-Origin", "*");
-
-    return new Response(
-      "welcome to pigeon room",
-      {
-        status: 200,
-        headers,
-      },
-    );
   }
 }
