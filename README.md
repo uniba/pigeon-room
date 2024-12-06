@@ -5,6 +5,14 @@
 DEMO (wss) -> wss://pigeon-room.deno.dev/pigeon/?address=demo
 DEMO (https) -> <https://pigeon-room.deno.dev/>
 
+## development
+
+The deno version for this project is managed using [asdf](https://asdf-vm.com/).
+
+To develop this project, please check that the deno runtime is managed via the asdf plugin.
+
+For more information, refer to the [asdf guide](https://asdf-vm.com/guide/getting-started.html) and the [asdf-deno plugin documentation](https://github.com/asdf-community/asdf-deno).
+
 ## 接続
 
 `ws(s)://${hostname}/pigeon/?address=${address}`という形式のURLで接続する。`${address}`は任意の文字列を指定し、同じ`${address}`に別のクライアントが接続することで、クライアント同士はクライアントのIDや全員を指定してリアルタイムに通信ができる。
