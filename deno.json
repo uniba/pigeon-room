@@ -1,0 +1,5 @@
+{
+  "tasks": {
+    "develop": "PORT=3000 deno run -A --env --watch app.ts"
+  }
+}

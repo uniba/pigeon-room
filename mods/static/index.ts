@@ -1,4 +1,4 @@
-const { protocol, hostname, port } = window.location
+const { protocol, hostname, port, search } = window.location
 type msg = {
   type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
   body: any,
@@ -39,12 +39,15 @@ class superWS extends WebSocket {
 
 }
 
+const params = new URLSearchParams(search);
+const address = params.get("address");
+
 const wsUrl =
   protocol === 'https:'
-    ? `wss://${hostname}:${port}/pigeon/pipo?address=demo`
+    ? `wss://${hostname}:${port}/pigeon/?address=${address}`
     // ? `wss://${hostname}:3000/ws/`
     : protocol === 'http:'
-      ? `ws://${hostname}:${port}/pigeon/?address=demo`
+      ? `ws://${hostname}:${port}/pigeon/?address=${address}`
       // ? `ws://${hostname}:3000/ws/`
       : null
 if (wsUrl === null) {
@@ -58,6 +61,9 @@ addEventListener('load', () => {
   const ws = new superWS(wsUrl)
   ws.addEventListener('open', (e) => {
     console.log({open: e})
+  })
+  ws.addEventListener('close', (e) => {
+    console.log({close: e})
   })
   if (document) {
     document.querySelector('#sndPipo')?.addEventListener('click', () => {
@@ -98,6 +104,7 @@ addEventListener('load', () => {
       ws.ping(['others'])
     })
     ws.addEventListener('message', (e) => {
+      console.log(e)
       const receivedMsg = JSON.parse(e.data) as msg & { timestamp: number, from: string }
       writeReceiveLog(receivedMsg)
       const { to = undefined, body, type, from = undefined, timestamp } = receivedMsg
@@ -117,8 +124,10 @@ addEventListener('load', () => {
         }, 500)
       }
       let msg
+      const addressElem = document.querySelector('p#address') as HTMLElement
       const myIdElem = document.querySelector('p#myid') as HTMLElement
       const othersElem = document.querySelector('p#othersid') as HTMLElement
+      addressElem.innerText = `address: ${address}`;
       try {
         msg = JSON.parse(e.data) as msg
         const { type } = msg
@@ -179,6 +188,7 @@ const writeTransLog = (
     </p>
   </div>`
   document.querySelector('#msgs')?.append(msgLi)
+  msgLi.scrollIntoView();
 }
 
 const writeReceiveLog = (
@@ -197,4 +207,5 @@ const writeReceiveLog = (
     </p>
   </div>`
   document.querySelector('#msgs')?.append(msgLi)
+  msgLi.scrollIntoView();
 }

@@ -12,9 +12,3 @@ export type msg = {
 export type msgFromServer = Pick< msg, 'type' | 'body' | 'address' | 'to' > & {
   from: clientId | 'host'
 }
-
-export type WsClient = {
-  client: WebSocket,
-  address: address
-  id: clientId
-}
