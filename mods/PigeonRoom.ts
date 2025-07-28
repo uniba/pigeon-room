@@ -66,8 +66,28 @@ export class PigeonRoom {
     });
 
     pigeon.on("message", (event) => {
-      const { body, type } = JSON.parse(event.data) as msg 
-      let { to = [] } = JSON.parse(event.data) as msg
+      let parsed: any;
+
+      try {
+        parsed = JSON.parse(event.data);
+      } catch (e) {
+        console.warn("Invalid JSON:", event.data);
+        return;
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        console.warn("Parsed data is not an object:", parsed);
+        return;
+      }
+
+      const { body, type } = parsed as msg;
+      let { to = [] } = parsed as msg
+
+      if (body === undefined || type === undefined) {
+        console.warn("Missing required fields:", parsed);
+        return;
+      }
+
       to = [to].flat()
       if (to.every(to => to == "host")) {
         if (type === "ping") {
