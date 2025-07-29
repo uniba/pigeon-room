@@ -6,7 +6,7 @@ export class Pigeon {
   public address: string;
   public response: Response;
 
-  constructor(request: Request) {
+  constructor(request: Request, id?: string) {
     const url = new URL(request.url)
     this.address = url.searchParams.get('address') || ""
     if(!this.address) throw new Error("address is null");
@@ -14,7 +14,7 @@ export class Pigeon {
     const { socket, response } = Deno.upgradeWebSocket(request);
     this.socket = socket;
     this.response = response;
-    this.id = uuidV4.generate().slice(0, 8);
+    this.id = id || uuidV4.generate().slice(0, 8);
   }
 
   public res() {

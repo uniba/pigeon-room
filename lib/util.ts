@@ -1,8 +1,8 @@
 export type clientId = string
 export type address = string
 
-export type msg = {
-  type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
+export type Msg<T = string> = {
+  type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init' | T,
   body: any,
   address: address | 'all',
   to: ( 'all' | 'others' | clientId )[],

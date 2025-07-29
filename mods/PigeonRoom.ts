@@ -1,5 +1,5 @@
 import { serveDir } from 'https://deno.land/std@0.182.0/http/file_server.ts'
-import { msg, msgFromServer } from "../lib/util.ts";
+import { Msg, msgFromServer } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
 import { transpile } from "https://deno.land/x/emit@0.25.0/mod.ts"
 
@@ -80,8 +80,8 @@ export class PigeonRoom {
         return;
       }
 
-      const { body, type } = parsed as msg;
-      let { to = [] } = parsed as msg
+      const { body, type } = parsed as Msg;
+      let { to = [] } = parsed as Msg
 
       if (body === undefined || type === undefined) {
         console.warn("Missing required fields:", parsed);
