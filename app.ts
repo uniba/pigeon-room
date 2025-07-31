@@ -18,10 +18,10 @@ Deno.serve(listenOptions, async (req) => {
   const url = new URL(req.url)
   if (url.pathname.startsWith("/pigeon")) {
     const address = url.searchParams.get('address')
-    const e3 = url.searchParams.get('e3init')
+    const id = url.searchParams.get("initas")
     if (address) {
-      if(e3 === "true") {
-        const pigeon = new Pigeon(req, "e3spot");
+      if(id) {
+        const pigeon = new Pigeon(req, id);
         pigeonRoom.addPigeon(pigeon);
         return pigeon.res();
       }
