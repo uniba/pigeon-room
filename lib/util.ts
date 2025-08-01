@@ -9,6 +9,6 @@ export type Msg<T = string> = {
   from?: clientId | 'host'
 }
 
-export type msgFromServer = Pick< msg, 'type' | 'body' | 'address' | 'to' > & {
+export type msgFromServer = Pick<Msg, 'type' | 'body' | 'address' | 'to' > & {
   from: clientId | 'host'
 }
