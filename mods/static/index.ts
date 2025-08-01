@@ -88,13 +88,16 @@ addEventListener('load', () => {
         }
         return prev
       }, [])
+      const msgTypeInput = document.querySelector('#msgTypeInput') as HTMLInputElement
+      const { value: msgType } = msgTypeInput 
       const msgBodyInput = document.querySelector('#msgBodyInput') as HTMLInputElement
       const { value: body } = msgBodyInput
       ws.sendMsg({
         to: [to].flat(),
         body,
-        type: 'message'
+        type: msgType || 'message'
       })
+      msgTypeInput.value = 'message'
       msgBodyInput.value = ''
     })
     document.querySelector('#ping_to_host')?.addEventListener('click', () => {
