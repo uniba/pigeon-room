@@ -5,6 +5,7 @@
   "prettier.disableLanguages": [
     "typescript",
     "javascript"
-  ]
+  ],
+  "tsserver.enable": false
 }
 
