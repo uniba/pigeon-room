@@ -1,27 +1,26 @@
-import { serveDir } from 'https://deno.land/std@0.182.0/http/file_server.ts'
+import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts";
 import { Msg, msgFromServer } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
-import { transpile } from "https://deno.land/x/emit@0.25.0/mod.ts"
-
+import { transpile } from "https://deno.land/x/emit@0.25.0/mod.ts";
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
   private useConsole: boolean;
 
-  constructor(){
-    this.useConsole = false 
+  constructor() {
+    this.useConsole = false;
     this.pigeons = [];
     setInterval(() => {
       if (this.pigeons.length) {
         this.ping();
       }
-    }, 30000)
+    }, 30000);
 
-    return this
+    return this;
   }
 
-  public addPigeon(pigeon: Pigeon){
-    this.pigeons.push(pigeon)
+  public addPigeon(pigeon: Pigeon) {
+    this.pigeons.push(pigeon);
 
     pigeon.on("open", () => {
       this.sendMsg({
@@ -31,14 +30,14 @@ export class PigeonRoom {
           id: pigeon.id,
           clients: [
             ...this.pigeons
-            .filter(p => {
-              return p.address === pigeon.address
-            })
-            .map(p => p.id)
-          ] 
+              .filter((p) => {
+                return p.address === pigeon.address;
+              })
+              .map((p) => p.id),
+          ],
         },
         to: [pigeon.id],
-        from: "host"
+        from: "host",
       });
 
       this.sendMsg({
@@ -48,20 +47,20 @@ export class PigeonRoom {
           id: pigeon.id,
           clients: [
             ...this.pigeons
-            .filter(p => {
-              return p.address === pigeon.address
-            })
-            .map(p => p.id)
-          ] 
+              .filter((p) => {
+                return p.address === pigeon.address;
+              })
+              .map((p) => p.id),
+          ],
         },
         to: [
           ...this.pigeons
-          .filter(p => {
-            return p.id !== pigeon.id && p.address === pigeon.address
-          })
-          .map(p => p.id)
+            .filter((p) => {
+              return p.id !== pigeon.id && p.address === pigeon.address;
+            })
+            .map((p) => p.id),
         ],
-        from: "host"
+        from: "host",
       });
     });
 
@@ -81,115 +80,121 @@ export class PigeonRoom {
       }
 
       const { body, type } = parsed as Msg;
-      let { to = [] } = parsed as Msg
+      let { to = [] } = parsed as Msg;
 
       if (body === undefined || type === undefined) {
         console.warn("Missing required fields:", parsed);
         return;
       }
 
-      to = [to].flat()
-      if (to.every(to => to == "host")) {
+      to = [to].flat();
+      if (to.every((to) => to == "host")) {
         if (type === "ping") {
-          this.pong([pigeon.id])
-          return
+          this.pong([pigeon.id]);
+          return;
         }
         if (type === "pong") {
           this.pigeons = [
-            ...this.pigeons.filter(c => {
-              return c.id !== pigeon.id
+            ...this.pigeons.filter((c) => {
+              return c.id !== pigeon.id;
             }),
-            pigeon
-          ]
-          return
+            pigeon,
+          ];
+          return;
         }
       }
-      if (!to.every(to => to == "host")) {
+      if (!to.every((to) => to == "host")) {
         this.sendMsg(
           {
             type,
             body,
             address: pigeon.address,
             to,
-            from: pigeon.id
-          }
-        )
+            from: pigeon.id,
+          },
+        );
       }
-      return
-    })
+      return;
+    });
 
-    pigeon.on('close', () => {
+    pigeon.on("close", () => {
       this.pigeons = [
-        ...this.pigeons.filter(c => {
-          return c.id !== pigeon.id
-        })
-      ]
+        ...this.pigeons.filter((c) => {
+          return c.id !== pigeon.id;
+        }),
+      ];
       this.sendMsg(
         {
-          type: 'clientClose',
+          type: "clientClose",
           body: {
             id: pigeon.id,
             clients: [
               ...this.pigeons
-              .filter(p => {
-                return p.address === pigeon.address
-              })
-              .map(p => p.id)
-            ] 
+                .filter((p) => {
+                  return p.address === pigeon.address;
+                })
+                .map((p) => p.id),
+            ],
           },
           address: pigeon.address,
           to: [
             ...this.pigeons
-            .filter(p => {
-              return p.id !== pigeon.id && p.address === pigeon.address
-            })
-            .map(p => p.id)
+              .filter((p) => {
+                return p.id !== pigeon.id && p.address === pigeon.address;
+              })
+              .map((p) => p.id),
           ],
-          from: 'host'
+          from: "host",
         },
-      )
-    })
+      );
+    });
 
     return pigeon;
   }
 
   public sendMsg(msg: msgFromServer) {
-    const { address, from, to } = msg
-    let targetPigeons: Pigeon[] = []
+    const { address, from, to } = msg;
+    let targetPigeons: Pigeon[] = [];
     try {
       const msgBody = JSON.stringify({
         ...msg,
         timestamp: new Date().getTime(),
-      })
-      const clientsInTargetAddress: Pigeon[] = this.pigeons.filter(socket => {
+      });
+      const clientsInTargetAddress: Pigeon[] = this.pigeons.filter((socket) => {
         // TODO: to: [`${id}@${address}`]などで送信できるようにする
         // TODO: addressが任意なので、?address=allで接続されると困るのをどうにかする。
-        return socket.address === address || address === "all"
-      })
+        return socket.address === address || address === "all";
+      });
 
       if (to.includes("all") || to.includes("others")) {
         if (to.includes("all") || to.includes(from)) {
-          targetPigeons.push(...clientsInTargetAddress)
+          targetPigeons.push(...clientsInTargetAddress);
         } else if (to.includes("others")) {
-          targetPigeons.push(...clientsInTargetAddress.filter(client => client.id !== from))
+          targetPigeons.push(
+            ...clientsInTargetAddress.filter((client) => client.id !== from),
+          );
         }
       } else {
-        targetPigeons.push(...clientsInTargetAddress.filter(client => to.includes(client.id)))
+        targetPigeons.push(
+          ...clientsInTargetAddress.filter((client) => to.includes(client.id)),
+        );
       }
 
       targetPigeons = targetPigeons.reduce((
         previousClients: Pigeon[],
-        targetClient: Pigeon 
+        targetClient: Pigeon,
       ) => {
-        const isUniqueClient = !(previousClients.map(ws => ws.id).includes(targetClient.id))
-        if (isUniqueClient) previousClients.push(targetClient)
-          return previousClients
-      }, [])
-      targetPigeons.forEach(socket => {
-        socket.socket.send(msgBody)
-      })
+        const isUniqueClient = !(previousClients.map((ws) =>
+          ws.id
+        ).includes(targetClient.id));
+        if (isUniqueClient) previousClients.push(targetClient);
+        return previousClients;
+      }, []);
+      targetPigeons.forEach((socket) => {
+        socket.socket.send(msgBody);
+      });
     } catch (_) {
-      return false
+      return false;
     }
   }
 
@@ -199,96 +204,95 @@ export class PigeonRoom {
       address: "all",
       type: "ping",
       body: "",
-      from: "host"
-    })
+      from: "host",
+    });
   }
-  
-  private pong(to: string[]){
+
+  private pong(to: string[]) {
     this.sendMsg({
       to,
       type: "pong",
       address: "all",
       body: "",
-      from: "host"
-    })
+      from: "host",
+    });
   }
-  
-  public enableConsole(){
-    this.useConsole = true
+
+  public enableConsole() {
+    this.useConsole = true;
   }
-  
-  public disableConsole(){
-    this.useConsole = true
+
+  public disableConsole() {
+    this.useConsole = true;
   }
 
   public async console(request: Request): Promise<Response> {
-    const headers = new Headers()
-    if(!this.useConsole){
-      headers.set('Charset', 'UTF-8')
-      headers.set('Access-Control-Allow-Origin', '*')
-      headers.set('Content-Type', 'text/html')
-      const htmlFile = await Deno.readFile('./mods/static/400.html');
-      const decoder = new TextDecoder()
+    const headers = new Headers();
+    if (!this.useConsole) {
+      headers.set("Charset", "UTF-8");
+      headers.set("Access-Control-Allow-Origin", "*");
+      headers.set("Content-Type", "text/html");
+      const htmlFile = await Deno.readFile("./mods/static/400.html");
+      const decoder = new TextDecoder();
       return new Response(
         decoder.decode(htmlFile),
         {
           status: 400,
           headers,
-        }
-      )
+        },
+      );
     }
-    const topPage = new URLPattern({ pathname: "/" })
-    const topPageMatch = topPage.exec(request.url)
+    const topPage = new URLPattern({ pathname: "/" });
+    const topPageMatch = topPage.exec(request.url);
 
-    const { pathname } = new URL(request.url) 
+    const { pathname } = new URL(request.url);
 
     if (pathname.startsWith("/static")) {
-      if (pathname.match('/static/index.js')) {
-        const url = new URL('./static/index.ts', import.meta.url)
+      if (pathname.match("/static/index.js")) {
+        const url = new URL("./static/index.ts", import.meta.url);
         const result = await transpile(url, {
-          cacheRoot: '/'
-        })
-        headers.set('Content-Type', 'application/javascript')
-        headers.set('Charset', 'UTF-8')
-        headers.set('Access-Control-Allow-Origin', '*')
+          cacheRoot: "/",
+        });
+        headers.set("Content-Type", "application/javascript");
+        headers.set("Charset", "UTF-8");
+        headers.set("Access-Control-Allow-Origin", "*");
         return new Response(
           result.get(url.href),
           {
             status: 200,
-            headers
-          }
-        )
+            headers,
+          },
+        );
       }
       return await serveDir(request, {
-        fsRoot: 'mods/static',
-        urlRoot: 'static',
-        enableCors: true
-      })
+        fsRoot: "mods/static",
+        urlRoot: "static",
+        enableCors: true,
+      });
     }
 
-    headers.set('Content-Type', 'application/json')
-    headers.set('Charset', 'UTF-8')
-    headers.set('Access-Control-Allow-Origin', '*')
+    headers.set("Content-Type", "application/json");
+    headers.set("Charset", "UTF-8");
+    headers.set("Access-Control-Allow-Origin", "*");
 
     if (topPageMatch) {
-      headers.set('Content-Type', 'text/html')
-      const htmlFile = await Deno.readFile('./mods/static/index.html');
-      const decoder = new TextDecoder()
+      headers.set("Content-Type", "text/html");
+      const htmlFile = await Deno.readFile("./mods/static/index.html");
+      const decoder = new TextDecoder();
       return new Response(
         decoder.decode(htmlFile),
         {
           status: 200,
           headers,
-        }
-      )
+        },
+      );
     }
     return new Response(
-      JSON.stringify('not found'),
+      JSON.stringify("not found"),
       {
         status: 404,
         headers,
-      }
-    )
+      },
+    );
   }
 }
-

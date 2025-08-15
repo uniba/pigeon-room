@@ -1,26 +1,26 @@
-import { type ServeInit } from 'https://deno.land/std@0.190.0/http/server.ts'
-import { load } from 'https://deno.land/std@0.194.0/dotenv/mod.ts'
+import { type ServeInit } from "https://deno.land/std@0.190.0/http/server.ts";
+import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
 import { PigeonRoom } from "./mods/PigeonRoom.ts";
 import { Pigeon } from "./mods/Pigeon.ts";
 
-let listenOptions: ServeInit = {}
+let listenOptions: ServeInit = {};
 const pigeonRoom = new PigeonRoom();
 pigeonRoom.enableConsole();
 
 const init = async () => {
-  const env = await load()
-  const port = parseInt(env['PORT']) || 3001
-  listenOptions = { port }
-}
-await init()
+  const env = await load();
+  const port = parseInt(env["PORT"]) || 3001;
+  listenOptions = { port };
+};
+await init();
 
 Deno.serve(listenOptions, async (req) => {
-  const url = new URL(req.url)
+  const url = new URL(req.url);
   if (url.pathname.startsWith("/pigeon")) {
-    const address = url.searchParams.get('address')
-    const id = url.searchParams.get("initas")
+    const address = url.searchParams.get("address");
+    const id = url.searchParams.get("initas");
     if (address) {
-      if(id) {
+      if (id) {
         const pigeon = new Pigeon(req, id);
         pigeonRoom.addPigeon(pigeon);
         return pigeon.res();
@@ -29,11 +29,11 @@ Deno.serve(listenOptions, async (req) => {
       pigeonRoom.addPigeon(pigeon);
       return pigeon.res();
     } else {
-      const { response, socket } = Deno.upgradeWebSocket(req)
-      socket.close(1001, 'websocket path did not have address')
-      return response
+      const { response, socket } = Deno.upgradeWebSocket(req);
+      socket.close(1001, "websocket path did not have address");
+      return response;
     }
   } else {
-    return await pigeonRoom.console(req)
+    return await pigeonRoom.console(req);
   }
-})
+});

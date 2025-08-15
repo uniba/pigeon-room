@@ -2,5 +2,10 @@
   "tasks": {
     "develop": "deno run -A --env --watch app.ts",
     "start": "deno run -A --env app.ts"
+  },
+  "fmt": {
+    "singleQuote": false,
+    "semiColons": true,
+    "exclude": ["./mods/static/"]
   }
 }

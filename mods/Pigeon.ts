@@ -1,4 +1,4 @@
-import { v4 as uuidV4 } from "https://deno.land/std@0.95.0/uuid/mod.ts"
+import { v4 as uuidV4 } from "https://deno.land/std@0.95.0/uuid/mod.ts";
 
 export class Pigeon {
   public socket: WebSocket;
@@ -7,9 +7,9 @@ export class Pigeon {
   public response: Response;
 
   constructor(request: Request, id?: string) {
-    const url = new URL(request.url)
-    this.address = url.searchParams.get('address') || ""
-    if(!this.address) throw new Error("address is null");
+    const url = new URL(request.url);
+    this.address = url.searchParams.get("address") || "";
+    if (!this.address) throw new Error("address is null");
 
     const { socket, response } = Deno.upgradeWebSocket(request);
     this.socket = socket;
@@ -23,9 +23,8 @@ export class Pigeon {
 
   public on<K extends keyof WebSocketEventMap>(
     type: K,
-    handler: (this: WebSocket, ev: WebSocketEventMap[K]) => any
+    handler: (this: WebSocket, ev: WebSocketEventMap[K]) => any,
   ) {
     this.socket.addEventListener(type, handler);
   }
-
 }
