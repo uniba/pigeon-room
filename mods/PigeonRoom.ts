@@ -242,20 +242,41 @@ export class PigeonRoom {
         },
       );
     }
-    const topPage = new URLPattern({ pathname: "/" });
-    const topPageMatch = topPage.exec(request.url);
 
-    const { pathname } = new URL(request.url);
+    const { pathname, search } = new URL(request.url);
 
     if (pathname.startsWith("/static")) {
-      if (pathname.match("/static/index.js")) {
-        const url = new URL("./static/index.ts", import.meta.url);
-        const result = await transpile(url, {
-          cacheRoot: "/",
-        });
+      if (
+        pathname.match("/static/index.js") ||
+        pathname.match("/static/enter-console.js")
+      ) {
         headers.set("Content-Type", "application/javascript");
         headers.set("Charset", "UTF-8");
         headers.set("Access-Control-Allow-Origin", "*");
+        let url: URL | undefined = undefined;
+
+        if (pathname.match("/static/index.js")) {
+          url = new URL("./static/index.ts", import.meta.url);
+        }
+
+        if (pathname.match("/static/enter-console.js")) {
+          url = new URL("./static/enter-console.ts", import.meta.url);
+        }
+
+        if (url === undefined) {
+          return new Response(
+            "not fount",
+            {
+              status: 404,
+              headers,
+            },
+          );
+        }
+
+        const result = await transpile(url, {
+          cacheRoot: "/",
+        });
+
         return new Response(
           result.get(url.href),
           {
@@ -273,11 +294,12 @@ export class PigeonRoom {
 
     headers.set("Content-Type", "application/json");
     headers.set("Charset", "UTF-8");
-    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Content-Type", "text/html");
 
-    if (topPageMatch) {
-      headers.set("Content-Type", "text/html");
-      const htmlFile = await Deno.readFile("./mods/static/index.html");
+    const params = new URLSearchParams(search);
+    const address = params.get("address");
+    if (!address) {
+      const htmlFile = await Deno.readFile("./mods/static/enter-console.html");
       const decoder = new TextDecoder();
       return new Response(
         decoder.decode(htmlFile),
@@ -287,10 +309,13 @@ export class PigeonRoom {
         },
       );
     }
+
+    const htmlFile = await Deno.readFile("./mods/static/index.html");
+    const decoder = new TextDecoder();
     return new Response(
-      JSON.stringify("not found"),
+      decoder.decode(htmlFile),
       {
-        status: 404,
+        status: 200,
         headers,
       },
     );

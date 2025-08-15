@@ -21,6 +21,7 @@ label {
   cursor: pointer;
   font-size: 12px;
   height: 24px;
+  vertical-align: middle;
 }
 
 p {
@@ -37,6 +38,19 @@ span {
 input {
   border: 1px solid #fff;
   color: #fff;
+  vertical-align: middle;
+}
+
+input[type="text"]{
+  height: 24px;
+}
+
+section.input{
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 header#global_header {
@@ -106,19 +120,8 @@ header#global_header > section.property > div.massaging > section#selector_wrap 
   color: #444;
   border: 1px solid #444;
 }
-header#global_header > section.property > div.massaging section.input{
-  margin: 8px 0 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
 header#global_header > section.property > div.massaging section.input+section.input {
   margin: 4px 0 0 0;
-}
-header#global_header > section.property > div.massaging section.input input#msgTypeInput,
-header#global_header > section.property > div.massaging section.input input#msgBodyInput {
-  height: 24px;
 }
 
 main {
