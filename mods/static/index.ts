@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-window
 /// <reference lib="dom" />
 
 const { protocol, hostname, port, search } = window.location;
@@ -52,10 +53,8 @@ const address = params.get("address");
 
 const wsUrl = protocol === "https:"
   ? `wss://${hostname}:${port}/pigeon/?address=${address}`
-  // ? `wss://${hostname}:3000/ws/`
   : protocol === "http:"
   ? `ws://${hostname}:${port}/pigeon/?address=${address}`
-  // ? `ws://${hostname}:3000/ws/`
   : null;
 if (wsUrl === null) {
   throw new Error(`unknown protocol: "${protocol}"`);
@@ -68,9 +67,43 @@ addEventListener("load", () => {
   const ws = new superWS(wsUrl);
   ws.addEventListener("open", (e) => {
     console.log({ open: e });
+    const disconnectedMsg = document.createElement("li");
+    const currentTime = Date.now();
+    disconnectedMsg.innerHTML = `<p class="connected-msg">CONNECTED at ${
+      new Date(currentTime).toLocaleString("ja-JP", {
+        timeZone: "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZoneName: "short",
+      })
+    } (${currentTime})</p>
+    `;
+    appendLog(disconnectedMsg);
   });
   ws.addEventListener("close", (e) => {
     console.log({ close: e });
+    const disconnectedMsg = document.createElement("li");
+    const currentTime = Date.now();
+    disconnectedMsg.innerHTML = `<p class="disconnected-msg">DISCONNECTED at ${
+      new Date(currentTime).toLocaleString("ja-JP", {
+        timeZone: "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZoneName: "short",
+      })
+    } (${currentTime})</p>
+    `;
+    appendLog(disconnectedMsg);
   });
   if (document) {
     document.querySelector("#sndPipo")?.addEventListener("click", () => {
@@ -81,16 +114,16 @@ addEventListener("load", () => {
       });
     });
     document.querySelector("#clear")?.addEventListener("click", () => {
-      const msgList = document.querySelector("#msgs") as HTMLElement;
+      const msgList = document.querySelector<HTMLUListElement>("#msgs");
       if (msgList) {
         const msgListClone = msgList.cloneNode(false);
         msgList.parentNode?.replaceChild(msgListClone, msgList);
       }
     });
     document.querySelector("#sndMsg")?.addEventListener("click", () => {
-      const inputs = document.querySelectorAll(
+      const inputs = document.querySelectorAll<HTMLInputElement>(
         '#to_selector > li > input[name="to"]',
-      ) as NodeListOf<HTMLInputElement>;
+      );
       const to = Array.from(inputs).reduce(
         (prev: string[], inputElement: HTMLInputElement) => {
           if (inputElement.checked) {
@@ -100,21 +133,23 @@ addEventListener("load", () => {
         },
         [],
       );
-      const msgTypeInput = document.querySelector(
+      const msgTypeInput = document.querySelector<HTMLInputElement>(
         "#msgTypeInput",
-      ) as HTMLInputElement;
-      const { value: msgType } = msgTypeInput;
-      const msgBodyInput = document.querySelector(
+      );
+      const msgBodyInput = document.querySelector<HTMLInputElement>(
         "#msgBodyInput",
-      ) as HTMLInputElement;
-      const { value: body } = msgBodyInput;
-      ws.sendMsg({
-        to: [to].flat(),
-        body,
-        type: msgType || "message",
-      });
-      msgTypeInput.value = "message";
-      msgBodyInput.value = "";
+      );
+      if (msgTypeInput && msgBodyInput) {
+        const { value: msgType } = msgTypeInput;
+        const { value: body } = msgBodyInput;
+        ws.sendMsg({
+          to: [to].flat(),
+          body,
+          type: msgType || "message",
+        });
+        msgTypeInput.value = "message";
+        msgBodyInput.value = "";
+      }
     });
     document.querySelector("#ping_to_host")?.addEventListener("click", () => {
       ws.ping(["host"]);
@@ -147,10 +182,14 @@ addEventListener("load", () => {
         }, 500);
       }
       let msg;
-      const addressElem = document.querySelector("p#address") as HTMLElement;
-      const myIdElem = document.querySelector("p#myid") as HTMLElement;
-      const othersElem = document.querySelector("p#othersid") as HTMLElement;
-      addressElem.innerText = `address: ${address}`;
+      const addressElem = document.querySelector<HTMLParagraphElement>(
+        "p#address",
+      );
+      const myIdElem = document.querySelector<HTMLParagraphElement>("p#myid");
+      const othersElem = document.querySelector<HTMLParagraphElement>(
+        "p#othersid",
+      );
+      if (addressElem) addressElem.innerText = `address: ${address}`;
       try {
         msg = JSON.parse(e.data) as msg;
         const { type } = msg;
@@ -162,7 +201,7 @@ addEventListener("load", () => {
         ) {
           if (type == "init") {
             id = msg.body.id;
-            myIdElem.innerText = `my id: ${id}`;
+            if (myIdElem) myIdElem.innerText = `my id: ${id}`;
             const titleElement = document.querySelector("title") as HTMLElement;
             if (titleElement) {
               titleElement.innerText = `${id} | ${titleElement.innerText}`;
@@ -171,10 +210,10 @@ addEventListener("load", () => {
           othersids = (msg.body.clients as string[]).filter((otherId) =>
             otherId !== id
           );
-          const selectElement = document.querySelector(
+          const selectElement = document.querySelector<HTMLUListElement>(
             "ul#to_selector",
-          ) as HTMLElement;
-          selectElement.innerHTML = "";
+          );
+          if (selectElement) selectElement.innerHTML = "";
           Array.from(["all", "others", id, ...othersids]).forEach(
             (targetId) => {
               const optionElement = document.createElement("li");
@@ -191,7 +230,9 @@ addEventListener("load", () => {
               selectElement.append(optionElement);
             },
           );
-          othersElem.innerText = `others ids: ${JSON.stringify(othersids)}`;
+          if (othersElem) {
+            othersElem.innerText = `others ids: ${JSON.stringify(othersids)}`;
+          }
         }
       } catch (error) {
         console.log(e);
@@ -199,6 +240,18 @@ addEventListener("load", () => {
     });
   }
 });
+
+const appendLog = (logElement: HTMLLIElement) => {
+  const msgs = document.querySelector("#msgs");
+  if (msgs) {
+    msgs.append(logElement);
+    const autoScroll = window.scrollY + window.innerHeight >
+      document.body.scrollHeight - 60 - logElement.clientHeight;
+    if (autoScroll) {
+      logElement.scrollIntoView();
+    }
+  }
+};
 
 const writeTransLog = (
   targetMsg: msg & { timestamp: number },
@@ -208,16 +261,28 @@ const writeTransLog = (
   console.log(JSON.stringify(body));
   const msgLi = document.createElement("li");
   msgLi.innerHTML = `<div class="message_type ${type} trans">
-    <header>
-      <span>▲ ${to} &lt;&lt;&lt; ${id}</span>
-      <span>${type} @ ${timestamp}</span>
-    </header>
-    <p class="message_body ${bodyString == '""' && "empty"}">
+  <header>
+  <span>▲ [TRANSMITTED MESSAGE] type: ${type}</span>
+  <span>to: ${to} &lt;&lt;&lt; from: ${id}</span>
+  <span>${
+    new Date(timestamp).toLocaleString("ja-JP", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    })
+  } (${timestamp})</span>
+  </header>
+  <p class="message_body ${bodyString == '""' && "empty"}">
       ${bodyString == '""' ? "this message has no body" : bodyString}
     </p>
   </div>`;
-  document.querySelector("#msgs")?.append(msgLi);
-  msgLi.scrollIntoView();
+  appendLog(msgLi);
 };
 
 const writeReceiveLog = (
@@ -227,14 +292,26 @@ const writeReceiveLog = (
   const bodyString = JSON.stringify(body);
   const msgLi = document.createElement("li");
   msgLi.innerHTML = `<div class="message_type ${type} receive">
-    <header>
-      <span>▼ ${from} &gt;&gt;&gt; ${to}</span>
-      <span>${type} @ ${timestamp}</span>
-    </header>
-    <p class="message_body ${bodyString == '""' && "empty"}">
+  <header>
+  <span>▼ [RECEIVED MESSAGE] type: ${type}</span>
+  <span>from: ${from} &gt;&gt;&gt; to: ${to}</span>
+  <span>${
+    new Date(timestamp).toLocaleString("ja-JP", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    })
+  } (${timestamp})</span>
+  </header>
+    <p class="message_body${bodyString == '""' ? " empty" : ""}">
       ${bodyString == '""' ? "this message has no body" : bodyString}
     </p>
   </div>`;
-  document.querySelector("#msgs")?.append(msgLi);
-  msgLi.scrollIntoView();
+  appendLog(msgLi);
 };

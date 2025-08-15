@@ -97,6 +97,7 @@ header#global_header > section.property > p#othersid {
 header#global_header > section.property > div.sample_message {
   margin: 4px 0 0 0;
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 header#global_header > section.property > div.massaging {
@@ -131,7 +132,7 @@ main ul#msgs span {
   color: #fff;
 }
 main ul#msgs li {
-  margin: 12px 0;
+  margin: 12px 0 20px 0;
 }
 main ul#msgs li > div > * {
   word-break: break-all;
@@ -147,8 +148,16 @@ main ul#msgs li > div > header > span {
   box-sizing: border-box;
   color: #c8c8c8;
 }
-main ul#msgs li > div > p.message_body {
+main ul#msgs li p.message_body,
+main ul#msgs li p.disconnected-msg,
+main ul#msgs li p.connected-msg {
   font-size: 16px;
+}
+main ul#msgs li p.disconnected-msg {
+  color: salmon;
+}
+main ul#msgs li p.connected-msg {
+  color: #0d0;
 }
 main ul#msgs li > div > p.message_body span {
   width: 16px;
