@@ -5,10 +5,8 @@
   },
   "fmt": {
     "singleQuote": false,
-    "semiColons": true,
-    "exclude": ["./mods/static/"]
+    "semiColons": true
   },
   "lint": {
-    "exclude": ["./mods/static/"]
   }
 }
