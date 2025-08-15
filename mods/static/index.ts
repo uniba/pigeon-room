@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 const { protocol, hostname, port, search } = window.location
 type msg = {
   type: 'ping' | 'pong' | 'message' | 'clientOpen' | 'clientClose' | 'init',
