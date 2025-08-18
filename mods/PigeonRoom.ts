@@ -259,6 +259,10 @@ export class PigeonRoom {
           url = new URL("./static/index.ts", import.meta.url);
         }
 
+        if (pathname.match("/static/Pigeon.js")) {
+          url = new URL("./static/Pigeon.ts", import.meta.url);
+        }
+
         if (pathname.match("/static/enter-console.js")) {
           url = new URL("./static/enter-console.ts", import.meta.url);
         }
