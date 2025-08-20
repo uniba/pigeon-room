@@ -18,7 +18,8 @@ Deno.serve(listenOptions, async (req) => {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/pigeon")) {
     const address = url.searchParams.get("address");
-    const id = url.searchParams.get("initas");
+    const id = url.searchParams.get("initas") ||
+      url.searchParams.get("staticid");
     if (address) {
       if (id) {
         const pigeon = new Pigeon(req, id);
