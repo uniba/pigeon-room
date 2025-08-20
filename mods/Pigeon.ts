@@ -1,4 +1,4 @@
-import { v4 as uuidV4 } from "https://deno.land/std@0.95.0/uuid/mod.ts";
+import { generateRandomString } from "@akisoqls/random-string";
 
 export class Pigeon {
   public socket: WebSocket;
@@ -14,7 +14,7 @@ export class Pigeon {
     const { socket, response } = Deno.upgradeWebSocket(request);
     this.socket = socket;
     this.response = response;
-    this.id = id || uuidV4.generate().slice(0, 8);
+    this.id = id || generateRandomString(8);
   }
 
   public res() {
