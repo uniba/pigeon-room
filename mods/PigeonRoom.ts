@@ -1,7 +1,6 @@
 import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts";
 import { Msg, msgFromServer } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
-import { transpile } from "https://deno.land/x/emit@0.25.0/mod.ts";
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
@@ -246,49 +245,6 @@ export class PigeonRoom {
     const { pathname, search } = new URL(request.url);
 
     if (pathname.startsWith("/static")) {
-      if (
-        pathname.match("/static/index.js") ||
-        pathname.match("/static/enter-console.js")
-      ) {
-        headers.set("Content-Type", "application/javascript");
-        headers.set("Charset", "UTF-8");
-        headers.set("Access-Control-Allow-Origin", "*");
-        let url: URL | undefined = undefined;
-
-        if (pathname.match("/static/index.js")) {
-          url = new URL("./static/index.ts", import.meta.url);
-        }
-
-        if (pathname.match("/static/Pigeon.js")) {
-          url = new URL("./static/Pigeon.ts", import.meta.url);
-        }
-
-        if (pathname.match("/static/enter-console.js")) {
-          url = new URL("./static/enter-console.ts", import.meta.url);
-        }
-
-        if (url === undefined) {
-          return new Response(
-            "not fount",
-            {
-              status: 404,
-              headers,
-            },
-          );
-        }
-
-        const result = await transpile(url, {
-          cacheRoot: "/",
-        });
-
-        return new Response(
-          result.get(url.href),
-          {
-            status: 200,
-            headers,
-          },
-        );
-      }
       return await serveDir(request, {
         fsRoot: "mods/static",
         urlRoot: "static",

@@ -1,8 +1,18 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@akisoqls/random-string@~0.1.1": "0.1.1",
+    "jsr:@circuitlab/pigeon-link@~0.1.3": "0.1.3",
     "npm:express@4": "4.18.2",
     "npm:node-wav-player@0.2.0": "0.2.0"
+  },
+  "jsr": {
+    "@akisoqls/random-string@0.1.1": {
+      "integrity": "b2d657b64ebde3e3b7a992b764fba9915524842c75ea4ccb0c3957d89fe7576e"
+    },
+    "@circuitlab/pigeon-link@0.1.3": {
+      "integrity": "f8aabae7ac20334282c01bf601459a81e9febeaa01919dabdd368cf293c2421d"
+    }
   },
   "npm": {
     "accepts@1.3.8": {
@@ -1202,5 +1212,11 @@
     "https://esm.sh/v124/unpipe@1.0.0/deno/unpipe.mjs": "92f91c516a474e4abeac1f58b7e6eb150979e26a67b599bc399757781b6e8523",
     "https://esm.sh/v124/utils-merge@1.0.1/deno/utils-merge.mjs": "728c4329fd527fb9e9972d42a50a37a059bbfbaab48c1af42624c39bf3294415",
     "https://esm.sh/v124/vary@1.1.2/deno/vary.mjs": "bfceabdb74a3f7ff5bc1d7b834d4687ef1b9fa105ae719e4e1d3e494f33b1931"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@akisoqls/random-string@~0.1.1",
+      "jsr:@circuitlab/pigeon-link@~0.1.3"
+    ]
   }
 }

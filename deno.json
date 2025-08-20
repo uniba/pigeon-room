@@ -1,12 +1,17 @@
 {
   "tasks": {
-    "develop": "deno run -A --env --watch app.ts",
-    "start": "deno run -A --env app.ts"
+    "develop:client": "deno bundle --watch --platform=browser --sourcemap=linked -o mods/static/dist/index.js mods/static/index.ts",
+    "develop:server": "deno run -A --env --watch app.ts",
+    "develop": { "dependencies": ["develop:client", "develop:server"] }
   },
   "fmt": {
     "singleQuote": false,
     "semiColons": true
   },
   "lint": {
+  },
+  "imports": {
+    "@akisoqls/random-string": "jsr:@akisoqls/random-string@^0.1.1",
+    "@circuitlab/pigeon-link": "jsr:@circuitlab/pigeon-link@^0.1.3"
   }
 }
