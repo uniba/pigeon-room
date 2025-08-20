@@ -2,7 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@akisoqls/random-string@~0.1.1": "0.1.1",
-    "jsr:@circuitlab/pigeon-link@~0.1.3": "0.1.3",
+    "jsr:@circuitlab/pigeon-link@0.2": "0.2.0",
     "npm:express@4": "4.18.2",
     "npm:node-wav-player@0.2.0": "0.2.0"
   },
@@ -10,8 +10,8 @@
     "@akisoqls/random-string@0.1.1": {
       "integrity": "b2d657b64ebde3e3b7a992b764fba9915524842c75ea4ccb0c3957d89fe7576e"
     },
-    "@circuitlab/pigeon-link@0.1.3": {
-      "integrity": "f8aabae7ac20334282c01bf601459a81e9febeaa01919dabdd368cf293c2421d"
+    "@circuitlab/pigeon-link@0.2.0": {
+      "integrity": "fb1b4bff5f300d19af41a4cf12b3dc350455065d4f2da8d95a4a489d807dc8f1"
     }
   },
   "npm": {
@@ -1216,7 +1216,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@akisoqls/random-string@~0.1.1",
-      "jsr:@circuitlab/pigeon-link@~0.1.3"
+      "jsr:@circuitlab/pigeon-link@0.2"
     ]
   }
 }

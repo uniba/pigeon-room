@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-window
 /// <reference lib="dom" />
-import { Pigeon, RecievedMessage, SendMessage } from "@circuitlab/pigeon-link";
+import { Pigeon, ReceivedMessage, SendMessage } from "@circuitlab/pigeon-link";
 import "./enter-console.ts";
 import { formatDate } from "./lib.ts";
 
@@ -129,7 +129,7 @@ addEventListener("load", () => {
       writeSentLog(msg);
     });
 
-    pigeon.onRecieveMessage<{
+    pigeon.onReceiveMessage<{
       id: string;
       clients: string[];
     }>({ type: "init" }, (msg) => {
@@ -149,7 +149,7 @@ addEventListener("load", () => {
       }
     }, { once: true });
 
-    pigeon.onRecieveMessage<{
+    pigeon.onReceiveMessage<{
       id: string;
       clients: string[];
     }>({ type: /clientOpen|clientClose/ }, (msg) => {
@@ -158,7 +158,7 @@ addEventListener("load", () => {
       setOthers([myId, ...othersids]);
     });
 
-    pigeon.onRecieveMessage<"">({ type: /ping|pong/ }, (msg) => {
+    pigeon.onReceiveMessage<"">({ type: /ping|pong/ }, (msg) => {
       writeReceiveLog(msg);
       document.querySelector("#flash")?.classList.add("ping");
       setTimeout(() => {
@@ -166,7 +166,7 @@ addEventListener("load", () => {
       }, 1000);
     });
 
-    pigeon.onRecieveMessage({
+    pigeon.onReceiveMessage({
       type: /^(?!(init|clientOpen|clientClose|ping|pong)$).+$/,
     }, (msg) => {
       writeReceiveLog(msg);
@@ -244,7 +244,7 @@ const writeSentLog = (
 };
 
 const writeReceiveLog = (
-  targetMsg: RecievedMessage,
+  targetMsg: ReceivedMessage,
 ) => {
   const { to = undefined, body, type, from = undefined, timestamp } = targetMsg;
   const bodyString = JSON.stringify(body);
