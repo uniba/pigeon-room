@@ -8,6 +8,11 @@ To develop this project, please check that the deno runtime is managed via the a
 
 For more information, refer to the [asdf guide](https://asdf-vm.com/guide/getting-started.html) and the [asdf-deno plugin documentation](https://github.com/asdf-community/asdf-deno).
 
+## Related modules
+
+- [@circuitlab/pigeon-link](https://jsr.io/@circuitlab/pigeon-link)
+    - helper module for connection pigeon room
+
 ## API Guide
 
 ### Connection
