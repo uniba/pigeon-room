@@ -24,7 +24,7 @@ jobs:
           deno-version: v2.x
 
       - name: Build step
-        run: "deno task develop"
+        run: "deno bundle --platform=browser --sourcemap=linked -o mods/static/dist/index.js mods/static/index.ts"
 
       - name: Upload to Deno Deploy
         uses: denoland/deployctl@v1
