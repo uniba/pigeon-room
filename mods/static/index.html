@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./static/reset.css" />
+    <link rel="stylesheet" href="./static/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@200;400;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>Pigeon room 🕊️</title>
+  </head>
+  <body>
+    <header id="global_header">
+      <div>
+        <div id="flash"></div>
+        <h1>Pigeon room 🕊️</h1>
+      </div>
+      <section class="property">
+        <p id="address">address: ---</p>
+        <p id="myid">my id: ---</p>
+        <p id="othersid">others id: ---</p>
+        <div class="massaging">
+          <section id="selector_wrap">
+            <p>to:</p>
+            <ul id="to_selector"></ul>
+          </section>
+          <section class="input">
+            <span>type: </span>
+            <input type="text" id="msgTypeInput" value="message" />
+          </section>
+          <section class="input">
+            <span>message: </span>
+            <input type="text" id="msgBodyInput" />
+            <button id="sndMsg">send</button>
+          </section>
+        </div>
+        <div class="sample_message">
+          <button id="ping_to_host">ping to host</button>
+          <button id="ping_to_others">ping to others</button>
+          <button id="sndPipo">pipo to all</button>
+        </div>
+      </section>
+    </header>
+    <main>
+      <ul id="msgs"></ul>
+      <section class="log_setting">
+        <input type="checkbox" id="hide_ping_pong" />
+        <label for="hide_ping_pong">hide ping/pong log</label>
+        <button id="clear">clear log</button>
+      </section>
+    </main>
+    <script type="module" src="./static/dist/index.js"></script>
+  </body>
+</html>

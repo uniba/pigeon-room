@@ -1,7 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap");
+
 body {
-  font-family: sans-serif;
   background-color: #000;
-  font-family: "Noto Sans Mono", monospace;
+  font-family: "Source Code Pro", monospace;
+}
+
+body:has(input#hide_ping_pong:checked) div.message_type.ping,
+body:has(input#hide_ping_pong:checked) div.message_type.pong {
+  display: none;
 }
 
 @keyframes flash {
@@ -20,6 +26,7 @@ label {
   cursor: pointer;
   font-size: 12px;
   height: 24px;
+  vertical-align: middle;
 }
 
 p {
@@ -36,6 +43,19 @@ span {
 input {
   border: 1px solid #fff;
   color: #fff;
+  vertical-align: middle;
+}
+
+input[type="text"] {
+  height: 24px;
+}
+
+section.input {
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 header#global_header {
@@ -44,7 +64,7 @@ header#global_header {
   left: 0;
   box-sizing: border-box;
   -webkit-backdrop-filter: blur(2px);
-          backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   z-index: 1;
 }
 header#global_header > div {
@@ -82,38 +102,54 @@ header#global_header > section.property > p#othersid {
 header#global_header > section.property > div.sample_message {
   margin: 4px 0 0 0;
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 header#global_header > section.property > div.massaging {
   margin: 4px 0 0 0;
 }
-header#global_header > section.property > div.massaging > section#selector_wrap {
+header#global_header
+  > section.property
+  > div.massaging
+  > section#selector_wrap {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-header#global_header > section.property > div.massaging > section#selector_wrap ul#to_selector {
+header#global_header
+  > section.property
+  > div.massaging
+  > section#selector_wrap
+  ul#to_selector {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 4px;
 }
-header#global_header > section.property > div.massaging > section#selector_wrap ul#to_selector input {
+header#global_header
+  > section.property
+  > div.massaging
+  > section#selector_wrap
+  ul#to_selector
+  input {
   display: none;
 }
-header#global_header > section.property > div.massaging > section#selector_wrap ul#to_selector input:checked + label {
+header#global_header
+  > section.property
+  > div.massaging
+  > section#selector_wrap
+  ul#to_selector
+  input:checked
+  + label {
   background-color: #fff;
   color: #444;
   border: 1px solid #444;
 }
-header#global_header > section.property > div.massaging section#input {
-  margin: 8px 0 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-header#global_header > section.property > div.massaging section#input input#msgBodyInput {
-  height: 24px;
+header#global_header
+  > section.property
+  > div.massaging
+  section.input
+  + section.input {
+  margin: 4px 0 0 0;
 }
 
 main {
@@ -123,7 +159,7 @@ main ul#msgs span {
   color: #fff;
 }
 main ul#msgs li {
-  margin: 12px 0;
+  margin: 12px 0 20px 0;
 }
 main ul#msgs li > div > * {
   word-break: break-all;
@@ -139,8 +175,16 @@ main ul#msgs li > div > header > span {
   box-sizing: border-box;
   color: #c8c8c8;
 }
-main ul#msgs li > div > p.message_body {
+main ul#msgs li p.message_body,
+main ul#msgs li p.disconnected-msg,
+main ul#msgs li p.connected-msg {
   font-size: 16px;
+}
+main ul#msgs li p.disconnected-msg {
+  color: salmon;
+}
+main ul#msgs li p.connected-msg {
+  color: #0d0;
 }
 main ul#msgs li > div > p.message_body span {
   width: 16px;
@@ -152,14 +196,15 @@ main ul#msgs li > div > p.message_body.empty {
 main ul#msgs li > div > p.message_body.empty span {
   color: #999;
 }
-main ul#msgs li > div.message_type.ping header, main ul#msgs li > div.message_type.pong header {
+main ul#msgs li > div.message_type.ping header,
+main ul#msgs li > div.message_type.pong header {
   border-color: #080;
+}
+main ul#msgs li > div header {
+  border-color: #0f8;
 }
 main ul#msgs li > div.message_type.init header {
   border-color: #f30;
-}
-main ul#msgs li > div.message_type.message header {
-  border-color: #0f0;
 }
 main ul#msgs li > div.message_type.clientOpen header {
   border-color: #fd0;
@@ -167,12 +212,30 @@ main ul#msgs li > div.message_type.clientOpen header {
 main ul#msgs li > div.message_type.clientClose header {
   border-color: #09f;
 }
-main button#clear {
+main section.log_setting {
   position: fixed;
   bottom: 12px;
   right: 12px;
+  display: flex;
+  gap: 8px 4px;
+}
+main section.log_setting input {
+  display: none;
+}
+main section.log_setting input:checked {
+  display: none;
+}
+main section.log_setting input + label {
+  display: block;
+}
+main section.log_setting input:checked + label {
+  background-color: #fff;
+  color: #444;
+  border: 1px solid #444;
+}
+main section.log_setting button#clear {
   background-color: #000;
 }
 main button#clear:hover {
   background-color: #f42;
-}/*# sourceMappingURL=style.css.map */
+}
