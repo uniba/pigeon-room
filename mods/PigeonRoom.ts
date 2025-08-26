@@ -13,6 +13,18 @@ export class PigeonRoom {
       if (this.pigeons.length) {
         this.ping();
       }
+      const [alive, disconnection] = this.pigeons.reduce<Pigeon[][]>(
+        ([keep, drop], currentPigeon) => {
+          return (
+            Date.now() - currentPigeon.lastMessageTime <= 75000
+              ? [[currentPigeon, ...keep], drop]
+              : [keep, [currentPigeon, ...drop]]
+          );
+        },
+        [[], []],
+      );
+      this.pigeons = alive;
+      disconnection.forEach((pigeon) => pigeon.socket.close());
     }, 30000);
 
     return this;
@@ -90,15 +102,6 @@ export class PigeonRoom {
       if (to.every((to) => to == "host")) {
         if (type === "ping") {
           this.pong([pigeon.id]);
-          return;
-        }
-        if (type === "pong") {
-          this.pigeons = [
-            ...this.pigeons.filter((c) => {
-              return c.id !== pigeon.id;
-            }),
-            pigeon,
-          ];
           return;
         }
       }
