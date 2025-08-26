@@ -5,6 +5,7 @@ export class Pigeon {
   public id: string;
   public address: string;
   public response: Response;
+  public lastMessageTime: number;
 
   constructor(request: Request, id?: string) {
     const url = new URL(request.url);
@@ -15,6 +16,15 @@ export class Pigeon {
     this.socket = socket;
     this.response = response;
     this.id = id || generateRandomString(8);
+    this.lastMessageTime = 0;
+    this.socket.addEventListener(
+      "open",
+      () => this.lastMessageTime = Date.now(),
+    );
+    this.socket.addEventListener(
+      "message",
+      () => this.lastMessageTime = Date.now(),
+    );
   }
 
   public res() {
