@@ -28,8 +28,8 @@ export class PigeonRoom {
     const url = new URL(req.url);
 
     const address = url.searchParams.get("address");
-    const id = url.searchParams.get("initas") ||
-      url.searchParams.get("staticid");
+    const id =
+      url.searchParams.get("initas") || url.searchParams.get("staticid");
     if (address) {
       if (id) {
         const pigeon = new Pigeon(req, id);
@@ -46,7 +46,7 @@ export class PigeonRoom {
     }
   }
 
-  addPigeon(pigeon: Pigeon) {
+  addPigeon(pigeon: Pigeon): Pigeon {
     this.pigeons.push(pigeon);
 
     pigeon.on("open", () => {
