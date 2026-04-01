@@ -19,21 +19,21 @@ export class Pigeon {
     this.lastMessageTime = 0;
     this.socket.addEventListener(
       "open",
-      () => this.lastMessageTime = Date.now(),
+      () => (this.lastMessageTime = Date.now()),
     );
     this.socket.addEventListener(
       "message",
-      () => this.lastMessageTime = Date.now(),
+      () => (this.lastMessageTime = Date.now()),
     );
   }
 
-  public res() {
+  public res(): Response {
     return this.response;
   }
 
   public on<K extends keyof WebSocketEventMap>(
     type: K,
-    handler: (this: WebSocket, ev: WebSocketEventMap[K]) => any,
+    handler: (this: WebSocket, ev: WebSocketEventMap[K]) => unknown,
   ) {
     this.socket.addEventListener(type, handler);
   }

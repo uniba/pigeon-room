@@ -1,8 +1,11 @@
 {
+  "name": "@circuitlab/pigeon-room",
+  "version": "1.0.0",
+  "license": "MIT",
+  "exports": "./index.ts",
   "tasks": {
-    "develop:client": "deno bundle --watch --platform=browser --sourcemap=linked -o mods/static/dist/index.js mods/static/index.ts",
-    "develop:server": "deno run -A --env --watch app.ts",
-    "develop": { "dependencies": ["develop:client", "develop:server"] }
+    "develop": "deno run -A --env --watch app.ts",
+    "start": "deno run -A --env app.ts"
   },
   "fmt": {
     "singleQuote": false,
@@ -11,7 +14,7 @@
   "lint": {
   },
   "imports": {
-    "@akisoqls/random-string": "jsr:@akisoqls/random-string@^0.1.1",
-    "@circuitlab/pigeon-link": "jsr:@circuitlab/pigeon-link@^0.2.0"
-  }
+    "@akisoqls/random-string": "jsr:@akisoqls/random-string@^0.1.1"
+  },
+  "workspace": ["examples/console"]
 }
