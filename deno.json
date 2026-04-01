@@ -11,5 +11,6 @@
   },
   "imports": {
     "@akisoqls/random-string": "jsr:@akisoqls/random-string@^0.1.1"
-  }
+  },
+  "workspace": ["examples/console"]
 }
