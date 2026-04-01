@@ -6,7 +6,6 @@ const init = () => {
   const listenOptions = { port };
 
   pR.listenOptions = listenOptions;
-  pR.enableConsole();
   pR.start();
 };
 
