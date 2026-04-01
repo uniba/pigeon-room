@@ -1,18 +1,11 @@
-import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts";
 import { Msg, msgFromServer } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
-  public listenOptions: Deno.ListenOptions;
-  #useConsole: boolean;
 
   constructor() {
-    this.#useConsole = false;
     this.pigeons = [];
-    this.listenOptions = {
-      port: 3000,
-    };
 
     setInterval(() => {
       if (this.pigeons.length) {
@@ -31,35 +24,29 @@ export class PigeonRoom {
     }, 30000);
   }
 
-  public start(entryPoint?: string) {
-    Deno.serve(this.listenOptions, async (req) => {
-      const url = new URL(req.url);
-      entryPoint = encodeURIComponent(entryPoint || "pigeon");
-      if (url.pathname.startsWith(`/${entryPoint}`)) {
-        const address = url.searchParams.get("address");
-        const id = url.searchParams.get("initas") ||
-          url.searchParams.get("staticid");
-        if (address) {
-          if (id) {
-            const pigeon = new Pigeon(req, id);
-            this.addPigeon(pigeon);
-            return pigeon.res();
-          }
-          const pigeon = new Pigeon(req);
-          this.addPigeon(pigeon);
-          return pigeon.res();
-        } else {
-          const { response, socket } = Deno.upgradeWebSocket(req);
-          socket.close(1001, "websocket path did not have address");
-          return response;
-        }
-      } else {
-        return await this.console(req);
+  handleReqest(req: Request): Response {
+    const url = new URL(req.url);
+
+    const address = url.searchParams.get("address");
+    const id = url.searchParams.get("initas") ||
+      url.searchParams.get("staticid");
+    if (address) {
+      if (id) {
+        const pigeon = new Pigeon(req, id);
+        this.addPigeon(pigeon);
+        return pigeon.res();
       }
-    });
+      const pigeon = new Pigeon(req);
+      this.addPigeon(pigeon);
+      return pigeon.res();
+    } else {
+      const { response, socket } = Deno.upgradeWebSocket(req);
+      socket.close(1001, "websocket path did not have address");
+      return response;
+    }
   }
 
-  public addPigeon(pigeon: Pigeon) {
+  addPigeon(pigeon: Pigeon) {
     this.pigeons.push(pigeon);
 
     pigeon.on("open", () => {
@@ -109,7 +96,7 @@ export class PigeonRoom {
 
       try {
         parsed = JSON.parse(event.data);
-      } catch (e) {
+      } catch (_e) {
         console.warn("Invalid JSON:", event.data);
         return;
       }
@@ -179,7 +166,7 @@ export class PigeonRoom {
     return pigeon;
   }
 
-  public sendMsg(msg: msgFromServer) {
+  sendMsg(msg: msgFromServer): void {
     const { address, from, to } = msg;
     let targetPigeons: Pigeon[] = [];
     try {
@@ -220,8 +207,12 @@ export class PigeonRoom {
       targetPigeons.forEach((socket) => {
         socket.socket.send(msgBody);
       });
-    } catch (_) {
-      return false;
+    } catch (e) {
+      if (e instanceof Error) {
+        throw new Error(e.message);
+      } else {
+        throw new Error("caught unknown error");
+      }
     }
   }
 
@@ -242,61 +233,6 @@ export class PigeonRoom {
       address: "all",
       body: "",
       from: "host",
-    });
-  }
-
-  public enableConsole() {
-    this.#useConsole = true;
-  }
-
-  public disableConsole() {
-    this.#useConsole = true;
-  }
-
-  public async console(request: Request): Promise<Response> {
-    const headers = new Headers();
-    if (!this.#useConsole) {
-      headers.set("Charset", "UTF-8");
-      headers.set("Access-Control-Allow-Origin", "*");
-      headers.set("Content-Type", "text/html");
-      const htmlFile = await Deno.readFile("./mods/static/400.html");
-      const decoder = new TextDecoder();
-      return new Response(decoder.decode(htmlFile), {
-        status: 400,
-        headers,
-      });
-    }
-
-    const { pathname, search } = new URL(request.url);
-
-    if (pathname.startsWith("/static")) {
-      return await serveDir(request, {
-        fsRoot: "mods/static",
-        urlRoot: "static",
-        enableCors: true,
-      });
-    }
-
-    headers.set("Content-Type", "application/json");
-    headers.set("Charset", "UTF-8");
-    headers.set("Content-Type", "text/html");
-
-    const params = new URLSearchParams(search);
-    const address = params.get("address");
-    if (!address) {
-      const htmlFile = await Deno.readFile("./mods/static/enter-console.html");
-      const decoder = new TextDecoder();
-      return new Response(decoder.decode(htmlFile), {
-        status: 200,
-        headers,
-      });
-    }
-
-    const htmlFile = await Deno.readFile("./mods/static/index.html");
-    const decoder = new TextDecoder();
-    return new Response(decoder.decode(htmlFile), {
-      status: 200,
-      headers,
     });
   }
 }
