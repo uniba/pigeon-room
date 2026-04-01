@@ -4,30 +4,59 @@ import { Pigeon } from "./Pigeon.ts";
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
-  private useConsole: boolean;
+  public listenOptions: Deno.ListenOptions;
+  #useConsole: boolean;
 
   constructor() {
-    this.useConsole = false;
+    this.#useConsole = false;
     this.pigeons = [];
+    this.listenOptions = {
+      port: 3000,
+    };
+
     setInterval(() => {
       if (this.pigeons.length) {
-        this.ping();
+        this.#ping();
       }
       const [alive, disconnection] = this.pigeons.reduce<Pigeon[][]>(
         ([keep, drop], currentPigeon) => {
-          return (
-            Date.now() - currentPigeon.lastMessageTime <= 75000
-              ? [[currentPigeon, ...keep], drop]
-              : [keep, [currentPigeon, ...drop]]
-          );
+          return Date.now() - currentPigeon.lastMessageTime <= 75000
+            ? [[currentPigeon, ...keep], drop]
+            : [keep, [currentPigeon, ...drop]];
         },
         [[], []],
       );
       this.pigeons = alive;
       disconnection.forEach((pigeon) => pigeon.socket.close());
     }, 30000);
+  }
 
-    return this;
+  public start(entryPoint?: string) {
+    Deno.serve(this.listenOptions, async (req) => {
+      const url = new URL(req.url);
+      entryPoint = encodeURIComponent(entryPoint || "pigeon");
+      if (url.pathname.startsWith(`/${entryPoint}`)) {
+        const address = url.searchParams.get("address");
+        const id = url.searchParams.get("initas") ||
+          url.searchParams.get("staticid");
+        if (address) {
+          if (id) {
+            const pigeon = new Pigeon(req, id);
+            this.addPigeon(pigeon);
+            return pigeon.res();
+          }
+          const pigeon = new Pigeon(req);
+          this.addPigeon(pigeon);
+          return pigeon.res();
+        } else {
+          const { response, socket } = Deno.upgradeWebSocket(req);
+          socket.close(1001, "websocket path did not have address");
+          return response;
+        }
+      } else {
+        return await this.console(req);
+      }
+    });
   }
 
   public addPigeon(pigeon: Pigeon) {
@@ -76,7 +105,7 @@ export class PigeonRoom {
     });
 
     pigeon.on("message", (event) => {
-      let parsed: any;
+      let parsed: unknown;
 
       try {
         parsed = JSON.parse(event.data);
@@ -101,20 +130,18 @@ export class PigeonRoom {
       to = [to].flat();
       if (to.every((to) => to == "host")) {
         if (type === "ping") {
-          this.pong([pigeon.id]);
+          this.#pong([pigeon.id]);
           return;
         }
       }
       if (!to.every((to) => to == "host")) {
-        this.sendMsg(
-          {
-            type,
-            body,
-            address: pigeon.address,
-            to,
-            from: pigeon.id,
-          },
-        );
+        this.sendMsg({
+          type,
+          body,
+          address: pigeon.address,
+          to,
+          from: pigeon.id,
+        });
       }
       return;
     });
@@ -125,30 +152,28 @@ export class PigeonRoom {
           return c.id !== pigeon.id;
         }),
       ];
-      this.sendMsg(
-        {
-          type: "clientClose",
-          body: {
-            id: pigeon.id,
-            clients: [
-              ...this.pigeons
-                .filter((p) => {
-                  return p.address === pigeon.address;
-                })
-                .map((p) => p.id),
-            ],
-          },
-          address: pigeon.address,
-          to: [
+      this.sendMsg({
+        type: "clientClose",
+        body: {
+          id: pigeon.id,
+          clients: [
             ...this.pigeons
               .filter((p) => {
-                return p.id !== pigeon.id && p.address === pigeon.address;
+                return p.address === pigeon.address;
               })
               .map((p) => p.id),
           ],
-          from: "host",
         },
-      );
+        address: pigeon.address,
+        to: [
+          ...this.pigeons
+            .filter((p) => {
+              return p.id !== pigeon.id && p.address === pigeon.address;
+            })
+            .map((p) => p.id),
+        ],
+        from: "host",
+      });
     });
 
     return pigeon;
@@ -182,16 +207,16 @@ export class PigeonRoom {
         );
       }
 
-      targetPigeons = targetPigeons.reduce((
-        previousClients: Pigeon[],
-        targetClient: Pigeon,
-      ) => {
-        const isUniqueClient = !(previousClients.map((ws) =>
-          ws.id
-        ).includes(targetClient.id));
-        if (isUniqueClient) previousClients.push(targetClient);
-        return previousClients;
-      }, []);
+      targetPigeons = targetPigeons.reduce(
+        (previousClients: Pigeon[], targetClient: Pigeon) => {
+          const isUniqueClient = !previousClients
+            .map((ws) => ws.id)
+            .includes(targetClient.id);
+          if (isUniqueClient) previousClients.push(targetClient);
+          return previousClients;
+        },
+        [],
+      );
       targetPigeons.forEach((socket) => {
         socket.socket.send(msgBody);
       });
@@ -200,7 +225,7 @@ export class PigeonRoom {
     }
   }
 
-  private ping() {
+  #ping() {
     this.sendMsg({
       to: ["all"],
       address: "all",
@@ -210,7 +235,7 @@ export class PigeonRoom {
     });
   }
 
-  private pong(to: string[]) {
+  #pong(to: string[]) {
     this.sendMsg({
       to,
       type: "pong",
@@ -221,28 +246,25 @@ export class PigeonRoom {
   }
 
   public enableConsole() {
-    this.useConsole = true;
+    this.#useConsole = true;
   }
 
   public disableConsole() {
-    this.useConsole = true;
+    this.#useConsole = true;
   }
 
   public async console(request: Request): Promise<Response> {
     const headers = new Headers();
-    if (!this.useConsole) {
+    if (!this.#useConsole) {
       headers.set("Charset", "UTF-8");
       headers.set("Access-Control-Allow-Origin", "*");
       headers.set("Content-Type", "text/html");
       const htmlFile = await Deno.readFile("./mods/static/400.html");
       const decoder = new TextDecoder();
-      return new Response(
-        decoder.decode(htmlFile),
-        {
-          status: 400,
-          headers,
-        },
-      );
+      return new Response(decoder.decode(htmlFile), {
+        status: 400,
+        headers,
+      });
     }
 
     const { pathname, search } = new URL(request.url);
@@ -264,23 +286,17 @@ export class PigeonRoom {
     if (!address) {
       const htmlFile = await Deno.readFile("./mods/static/enter-console.html");
       const decoder = new TextDecoder();
-      return new Response(
-        decoder.decode(htmlFile),
-        {
-          status: 200,
-          headers,
-        },
-      );
+      return new Response(decoder.decode(htmlFile), {
+        status: 200,
+        headers,
+      });
     }
 
     const htmlFile = await Deno.readFile("./mods/static/index.html");
     const decoder = new TextDecoder();
-    return new Response(
-      decoder.decode(htmlFile),
-      {
-        status: 200,
-        headers,
-      },
-    );
+    return new Response(decoder.decode(htmlFile), {
+      status: 200,
+      headers,
+    });
   }
 }
