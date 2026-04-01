@@ -1,4 +1,8 @@
 {
+  "name": "@circuitlab/pigeon-room",
+  "version": "1.0.0",
+  "license": "MIT",
+  "exports": "./index.ts",
   "tasks": {
     "develop": "deno run -A --env --watch app.ts",
     "start": "deno run -A --env app.ts"

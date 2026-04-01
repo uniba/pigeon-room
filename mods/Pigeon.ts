@@ -19,15 +19,15 @@ export class Pigeon {
     this.lastMessageTime = 0;
     this.socket.addEventListener(
       "open",
-      () => this.lastMessageTime = Date.now(),
+      () => (this.lastMessageTime = Date.now()),
     );
     this.socket.addEventListener(
       "message",
-      () => this.lastMessageTime = Date.now(),
+      () => (this.lastMessageTime = Date.now()),
     );
   }
 
-  public res() {
+  public res(): Response {
     return this.response;
   }
 
