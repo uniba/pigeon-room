@@ -3,13 +3,9 @@ import { Pigeon } from "./Pigeon.ts";
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
-  public listenOptions: Deno.ListenOptions;
 
   constructor() {
     this.pigeons = [];
-    this.listenOptions = {
-      port: 3000,
-    };
 
     setInterval(() => {
       if (this.pigeons.length) {
@@ -28,34 +24,26 @@ export class PigeonRoom {
     }, 30000);
   }
 
-  public start(entryPoint?: string) {
-    Deno.serve(this.listenOptions, (req: Request) => {
-      const url = new URL(req.url);
-      entryPoint = encodeURIComponent(entryPoint || "pigeon");
-      if (url.pathname.startsWith(`/${entryPoint}`)) {
-        const address = url.searchParams.get("address");
-        const id =
-          url.searchParams.get("initas") || url.searchParams.get("staticid");
-        if (address) {
-          if (id) {
-            const pigeon = new Pigeon(req, id);
-            this.addPigeon(pigeon);
-            return pigeon.res();
-          }
-          const pigeon = new Pigeon(req);
-          this.addPigeon(pigeon);
-          return pigeon.res();
-        } else {
-          const { response, socket } = Deno.upgradeWebSocket(req);
-          socket.close(1001, "websocket path did not have address");
-          return response;
-        }
-      } else {
-        return new Response("Not Found", {
-          status: 404,
-        });
+  public handleReqest(req: Request): Response {
+    const url = new URL(req.url);
+
+    const address = url.searchParams.get("address");
+    const id = url.searchParams.get("initas") ||
+      url.searchParams.get("staticid");
+    if (address) {
+      if (id) {
+        const pigeon = new Pigeon(req, id);
+        this.addPigeon(pigeon);
+        return pigeon.res();
       }
-    });
+      const pigeon = new Pigeon(req);
+      this.addPigeon(pigeon);
+      return pigeon.res();
+    } else {
+      const { response, socket } = Deno.upgradeWebSocket(req);
+      socket.close(1001, "websocket path did not have address");
+      return response;
+    }
   }
 
   public addPigeon(pigeon: Pigeon) {
