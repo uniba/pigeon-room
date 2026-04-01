@@ -2,6 +2,7 @@ import { PigeonRoom } from "./mods/PigeonRoom.ts";
 
 const init = () => {
   const pR = new PigeonRoom();
+  console.log(Deno.env.get("PORT"));
   const port = parseInt(Deno.env.get("PORT") || "3001");
   const listenOptions = { port };
 

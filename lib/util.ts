@@ -1,14 +1,14 @@
-export type clientId = string;
-export type address = string;
+export type ClientId = string;
+export type Address = string;
 
 export type Msg<T = string> = {
   type: "ping" | "pong" | "message" | "clientOpen" | "clientClose" | "init" | T;
-  body: any;
-  address: address | "all";
-  to: ("all" | "others" | clientId)[];
-  from?: clientId | "host";
+  body: unknown;
+  address: Address | "all";
+  to: ("all" | "others" | ClientId)[];
+  from?: ClientId | "host";
 };
 
 export type msgFromServer = Pick<Msg, "type" | "body" | "address" | "to"> & {
-  from: clientId | "host";
+  from: ClientId | "host";
 };

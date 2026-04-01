@@ -24,7 +24,7 @@ export class PigeonRoom {
     }, 30000);
   }
 
-  public handleReqest(req: Request): Response {
+  handleReqest(req: Request): Response {
     const url = new URL(req.url);
 
     const address = url.searchParams.get("address");
@@ -46,7 +46,7 @@ export class PigeonRoom {
     }
   }
 
-  public addPigeon(pigeon: Pigeon) {
+  addPigeon(pigeon: Pigeon) {
     this.pigeons.push(pigeon);
 
     pigeon.on("open", () => {
@@ -96,7 +96,7 @@ export class PigeonRoom {
 
       try {
         parsed = JSON.parse(event.data);
-      } catch (e) {
+      } catch (_e) {
         console.warn("Invalid JSON:", event.data);
         return;
       }
@@ -166,7 +166,7 @@ export class PigeonRoom {
     return pigeon;
   }
 
-  public sendMsg(msg: msgFromServer) {
+  sendMsg(msg: msgFromServer): void {
     const { address, from, to } = msg;
     let targetPigeons: Pigeon[] = [];
     try {
@@ -207,8 +207,12 @@ export class PigeonRoom {
       targetPigeons.forEach((socket) => {
         socket.socket.send(msgBody);
       });
-    } catch (_) {
-      return false;
+    } catch (e) {
+      if (e instanceof Error) {
+        throw new Error(e.message);
+      } else {
+        throw new Error("caught unknown error");
+      }
     }
   }
 

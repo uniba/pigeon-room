@@ -33,7 +33,7 @@ export class Pigeon {
 
   public on<K extends keyof WebSocketEventMap>(
     type: K,
-    handler: (this: WebSocket, ev: WebSocketEventMap[K]) => any,
+    handler: (this: WebSocket, ev: WebSocketEventMap[K]) => unknown,
   ) {
     this.socket.addEventListener(type, handler);
   }
