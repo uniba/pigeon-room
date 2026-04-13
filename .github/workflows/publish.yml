@@ -1,4 +1,4 @@
-name: Publish to JSR Dry Run
+name: Publish to JSR
 
 on:
   pull_request:
