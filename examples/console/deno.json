@@ -2,13 +2,13 @@
   "tasks": {
     "build:console": "deno bundle --platform=browser --sourcemap=linked --output=static/dist/index.js static/index.ts",
     "dev:console": "deno bundle --watch --platform=browser --sourcemap=linked --output=static/dist/index.js static/index.ts",
-    "start:server": "deno run -A --env app.ts",
+    "start:server": "deno run -A --env main.ts",
     "dev:server": "deno run -A --env --watch main.ts",
     "develop": { 
       "dependencies": ["build:console"],
       "command": "deno task dev:server"
     },
-    "start": { "dependencies": ["build:client", "start:server"] }
+    "start": { "dependencies": ["build:console", "start:server"] }
   },
   "imports": {
     "@circuitlab/pigeon-link": "jsr:@circuitlab/pigeon-link@^0.2.0",
