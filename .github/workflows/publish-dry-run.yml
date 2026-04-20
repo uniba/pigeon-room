@@ -1,0 +1,23 @@
+name: Publish to JSR Dry Run
+
+on:
+  pull_request:
+    types: 
+      - closed
+    branches: 
+      - main 
+      - staging
+  push:
+    branches: 
+      - pigeon-room-module
+    
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+      - run: deno publish --dry-run

@@ -1,36 +1,52 @@
-import { serveDir } from "https://deno.land/std@0.182.0/http/file_server.ts";
 import { Msg, msgFromServer } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
-  private useConsole: boolean;
 
   constructor() {
-    this.useConsole = false;
     this.pigeons = [];
+
     setInterval(() => {
       if (this.pigeons.length) {
-        this.ping();
+        this.#ping();
       }
       const [alive, disconnection] = this.pigeons.reduce<Pigeon[][]>(
         ([keep, drop], currentPigeon) => {
-          return (
-            Date.now() - currentPigeon.lastMessageTime <= 75000
-              ? [[currentPigeon, ...keep], drop]
-              : [keep, [currentPigeon, ...drop]]
-          );
+          return Date.now() - currentPigeon.lastMessageTime <= 75000
+            ? [[currentPigeon, ...keep], drop]
+            : [keep, [currentPigeon, ...drop]];
         },
         [[], []],
       );
       this.pigeons = alive;
       disconnection.forEach((pigeon) => pigeon.socket.close());
     }, 30000);
-
-    return this;
   }
 
-  public addPigeon(pigeon: Pigeon) {
+  handleReqest(req: Request): Response {
+    const url = new URL(req.url);
+
+    const address = url.searchParams.get("address");
+    const id =
+      url.searchParams.get("initas") || url.searchParams.get("staticid");
+    if (address) {
+      if (id) {
+        const pigeon = new Pigeon(req, id);
+        this.addPigeon(pigeon);
+        return pigeon.res();
+      }
+      const pigeon = new Pigeon(req);
+      this.addPigeon(pigeon);
+      return pigeon.res();
+    } else {
+      const { response, socket } = Deno.upgradeWebSocket(req);
+      socket.close(1001, "websocket path did not have address");
+      return response;
+    }
+  }
+
+  addPigeon(pigeon: Pigeon): Pigeon {
     this.pigeons.push(pigeon);
 
     pigeon.on("open", () => {
@@ -76,11 +92,11 @@ export class PigeonRoom {
     });
 
     pigeon.on("message", (event) => {
-      let parsed: any;
+      let parsed: unknown;
 
       try {
         parsed = JSON.parse(event.data);
-      } catch (e) {
+      } catch (_e) {
         console.warn("Invalid JSON:", event.data);
         return;
       }
@@ -101,20 +117,18 @@ export class PigeonRoom {
       to = [to].flat();
       if (to.every((to) => to == "host")) {
         if (type === "ping") {
-          this.pong([pigeon.id]);
+          this.#pong([pigeon.id]);
           return;
         }
       }
       if (!to.every((to) => to == "host")) {
-        this.sendMsg(
-          {
-            type,
-            body,
-            address: pigeon.address,
-            to,
-            from: pigeon.id,
-          },
-        );
+        this.sendMsg({
+          type,
+          body,
+          address: pigeon.address,
+          to,
+          from: pigeon.id,
+        });
       }
       return;
     });
@@ -125,36 +139,34 @@ export class PigeonRoom {
           return c.id !== pigeon.id;
         }),
       ];
-      this.sendMsg(
-        {
-          type: "clientClose",
-          body: {
-            id: pigeon.id,
-            clients: [
-              ...this.pigeons
-                .filter((p) => {
-                  return p.address === pigeon.address;
-                })
-                .map((p) => p.id),
-            ],
-          },
-          address: pigeon.address,
-          to: [
+      this.sendMsg({
+        type: "clientClose",
+        body: {
+          id: pigeon.id,
+          clients: [
             ...this.pigeons
               .filter((p) => {
-                return p.id !== pigeon.id && p.address === pigeon.address;
+                return p.address === pigeon.address;
               })
               .map((p) => p.id),
           ],
-          from: "host",
         },
-      );
+        address: pigeon.address,
+        to: [
+          ...this.pigeons
+            .filter((p) => {
+              return p.id !== pigeon.id && p.address === pigeon.address;
+            })
+            .map((p) => p.id),
+        ],
+        from: "host",
+      });
     });
 
     return pigeon;
   }
 
-  public sendMsg(msg: msgFromServer) {
+  sendMsg(msg: msgFromServer): void {
     const { address, from, to } = msg;
     let targetPigeons: Pigeon[] = [];
     try {
@@ -182,25 +194,29 @@ export class PigeonRoom {
         );
       }
 
-      targetPigeons = targetPigeons.reduce((
-        previousClients: Pigeon[],
-        targetClient: Pigeon,
-      ) => {
-        const isUniqueClient = !(previousClients.map((ws) =>
-          ws.id
-        ).includes(targetClient.id));
-        if (isUniqueClient) previousClients.push(targetClient);
-        return previousClients;
-      }, []);
+      targetPigeons = targetPigeons.reduce(
+        (previousClients: Pigeon[], targetClient: Pigeon) => {
+          const isUniqueClient = !previousClients
+            .map((ws) => ws.id)
+            .includes(targetClient.id);
+          if (isUniqueClient) previousClients.push(targetClient);
+          return previousClients;
+        },
+        [],
+      );
       targetPigeons.forEach((socket) => {
         socket.socket.send(msgBody);
       });
-    } catch (_) {
-      return false;
+    } catch (e) {
+      if (e instanceof Error) {
+        throw new Error(e.message);
+      } else {
+        throw new Error("caught unknown error");
+      }
     }
   }
 
-  private ping() {
+  #ping() {
     this.sendMsg({
       to: ["all"],
       address: "all",
@@ -210,7 +226,7 @@ export class PigeonRoom {
     });
   }
 
-  private pong(to: string[]) {
+  #pong(to: string[]) {
     this.sendMsg({
       to,
       type: "pong",
@@ -218,69 +234,5 @@ export class PigeonRoom {
       body: "",
       from: "host",
     });
-  }
-
-  public enableConsole() {
-    this.useConsole = true;
-  }
-
-  public disableConsole() {
-    this.useConsole = true;
-  }
-
-  public async console(request: Request): Promise<Response> {
-    const headers = new Headers();
-    if (!this.useConsole) {
-      headers.set("Charset", "UTF-8");
-      headers.set("Access-Control-Allow-Origin", "*");
-      headers.set("Content-Type", "text/html");
-      const htmlFile = await Deno.readFile("./mods/static/400.html");
-      const decoder = new TextDecoder();
-      return new Response(
-        decoder.decode(htmlFile),
-        {
-          status: 400,
-          headers,
-        },
-      );
-    }
-
-    const { pathname, search } = new URL(request.url);
-
-    if (pathname.startsWith("/static")) {
-      return await serveDir(request, {
-        fsRoot: "mods/static",
-        urlRoot: "static",
-        enableCors: true,
-      });
-    }
-
-    headers.set("Content-Type", "application/json");
-    headers.set("Charset", "UTF-8");
-    headers.set("Content-Type", "text/html");
-
-    const params = new URLSearchParams(search);
-    const address = params.get("address");
-    if (!address) {
-      const htmlFile = await Deno.readFile("./mods/static/enter-console.html");
-      const decoder = new TextDecoder();
-      return new Response(
-        decoder.decode(htmlFile),
-        {
-          status: 200,
-          headers,
-        },
-      );
-    }
-
-    const htmlFile = await Deno.readFile("./mods/static/index.html");
-    const decoder = new TextDecoder();
-    return new Response(
-      decoder.decode(htmlFile),
-      {
-        status: 200,
-        headers,
-      },
-    );
   }
 }

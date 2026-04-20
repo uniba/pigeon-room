@@ -1,0 +1,21 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@circuitlab/pigeon-link@0.2": "0.2.0",
+    "jsr:@hono/hono@^4.12.9": "4.12.9"
+  },
+  "jsr": {
+    "@circuitlab/pigeon-link@0.2.0": {
+      "integrity": "fb1b4bff5f300d19af41a4cf12b3dc350455065d4f2da8d95a4a489d807dc8f1"
+    },
+    "@hono/hono@4.12.9": {
+      "integrity": "53c2b0a721c1d782e6a347ad5bf15a3235ff624b98859c21f779b7ee2f5e040e"
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@circuitlab/pigeon-link@0.2",
+      "jsr:@hono/hono@^4.12.9"
+    ]
+  }
+}

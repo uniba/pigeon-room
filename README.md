@@ -17,9 +17,9 @@ For more information, refer to the [asdf guide](https://asdf-vm.com/guide/gettin
 
 ### Connection
 
-Connect using a URL in the format `ws(s)://<hostname>/pigeon/`.
-
 #### Get Params
+
+Connect with following params.
 
 - `address`
     - `address` specifies a string of one or more characters. By connecting to the same `address`, clients can communicate with each other in real time.
@@ -29,8 +29,7 @@ Connect using a URL in the format `ws(s)://<hostname>/pigeon/`.
 
 ### Messages received from the server
 
-The server will send messages in the following format.
-
+Pigeon room host will send messages in the following format.
 
 - **type**: Message type. Predefined values `'message'`, `'ping'`, `'pong'`, `'clientOpen'`, `'clientClose'`, `'init'`, and custom value.
 - **to**: Array of recipients ID, `'all'` (everyone) or `'others'` (other than the sender).
@@ -43,7 +42,7 @@ The server will send messages in the following format.
 
 ##### `'init'`
 
-Server will send when first time after success to connect pigeon room.
+Pigeon room host will send when first time after success to connect pigeon room.
 
 ```JSONC
 {
@@ -61,7 +60,7 @@ Server will send when first time after success to connect pigeon room.
 
 ##### `'ping'` / `'pong'`
 
-Server will send ping message every 30 seconds.
+Pigeon room host will send ping message every 30 seconds.
 
 If receive `'ping'` type message, send `'pong'` type message to sender soon.
 
@@ -105,6 +104,7 @@ Notification of leave other pigeon to same address.
 }
 ```
 
+
 ### message format for send
 
 JSON string. Must contain the following properties and be correctly parsed.
@@ -127,4 +127,3 @@ const stringMsg = JSON.stringify(message)
 
 ws.send(stringMsg)
 ```
-
