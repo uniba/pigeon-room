@@ -134,11 +134,13 @@ export class PigeonRoom {
     });
 
     pigeon.on("close", () => {
-      this.pigeons = [
-        ...this.pigeons.filter((c) => {
-          return c.id !== pigeon.id;
-        }),
-      ];
+      // Remove this exact pigeon, not every pigeon that shares its id. A
+      // client reconnecting with the same staticid briefly has two pigeons
+      // in the room; filtering by id would drop the live one when the
+      // stale connection finally closes, orphaning a working socket —
+      // frames still arrive (the message handler holds the pigeon in its
+      // closure) but routing and peer counts no longer see it.
+      this.pigeons = this.pigeons.filter((c) => c !== pigeon);
       this.sendMsg({
         type: "clientClose",
         body: {
