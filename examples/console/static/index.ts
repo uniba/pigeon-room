@@ -8,6 +8,7 @@ const { protocol, hostname, port, search } = window.location;
 
 const params = new URLSearchParams(search);
 const address = params.get("address");
+const staticid = params.get("staticid");
 
 const baseUrl = protocol === "https:"
   ? `wss://${hostname}:${port}/pigeon`
@@ -25,6 +26,9 @@ let othersids: string[] = [];
 addEventListener("load", () => {
   const pigeon = new Pigeon({
     address: address || "",
+    ...(
+      staticid ? { staticId: staticid } : {}
+    ),
     baseUrl,
   });
   const ws = pigeon.socket;
