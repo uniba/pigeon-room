@@ -134,11 +134,12 @@ export class PigeonRoom {
     });
 
     pigeon.on("close", () => {
-      this.pigeons = [
-        ...this.pigeons.filter((c) => {
-          return c.id !== pigeon.id;
-        }),
-      ];
+      // Remove the specific pigeon instance that closed. Filtering by id
+      // here was unsafe because clients can re-use an id across sessions
+      // via the `staticid` query parameter: when an old pigeon closed,
+      // every pigeon sharing that id (including a freshly-reconnected
+      // one) was evicted from the list.
+      this.pigeons = this.pigeons.filter((c) => c !== pigeon);
       this.sendMsg({
         type: "clientClose",
         body: {
