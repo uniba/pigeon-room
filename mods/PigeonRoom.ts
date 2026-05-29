@@ -297,6 +297,10 @@ export class PigeonRoom {
   ): void {
     const { address, from, to } = msg;
     const targetPigeons = this.#resolveTargets(address, from, to);
+    // Nothing to relay to — skip building the frame. The payload can be large
+    // (e.g. ~100 KB depth frames at 30 Hz), so avoid the allocation + copy
+    // when no recipient would receive it.
+    if (targetPigeons.length === 0) return;
     const frame = buildBinaryFrame(
       {
         type: msg.type,
