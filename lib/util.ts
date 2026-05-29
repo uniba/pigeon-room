@@ -30,9 +30,17 @@ export type BinaryFrameHeader = Pick<Msg, "type" | "to" | "body"> & {
   from?: ClientId | "host";
 };
 
+// On relay the host authoritatively stamps `address` and `timestamp` into the
+// header, so a received frame always carries them even though senders must not
+// set them. This type reflects what a receiver actually sees.
+export type ReceivedBinaryFrameHeader = BinaryFrameHeader & {
+  address?: Address;
+  timestamp?: number;
+};
+
 export type ParsedBinaryFrame = {
   version: number;
-  header: BinaryFrameHeader;
+  header: ReceivedBinaryFrameHeader;
   payload: Uint8Array;
 };
 

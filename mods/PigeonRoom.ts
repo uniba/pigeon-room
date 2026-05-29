@@ -4,6 +4,7 @@ import {
   Msg,
   msgFromServer,
   parseBinaryFrame,
+  ReceivedBinaryFrameHeader,
 } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
 
@@ -16,7 +17,7 @@ export type IncomingFrame =
   | {
     kind: "binary";
     pigeon: Pigeon;
-    header: BinaryFrameHeader;
+    header: ReceivedBinaryFrameHeader;
     payload: Uint8Array;
     version: number;
   };
