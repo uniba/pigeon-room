@@ -328,7 +328,7 @@ export class PigeonRoom {
       return socket.address === address || address === "all";
     });
 
-    let targetPigeons: Pigeon[] = [];
+    const targetPigeons: Pigeon[] = [];
     if (to.includes("all") || to.includes("others")) {
       if (to.includes("all") || to.includes(from)) {
         targetPigeons.push(...clientsInTargetAddress);
