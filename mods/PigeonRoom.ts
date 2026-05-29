@@ -148,7 +148,12 @@ export class PigeonRoom {
         this.#fireHooks({
           kind: "binary",
           pigeon,
-          header,
+          // Authoritatively set `from` to the sending pigeon's id, mirroring
+          // the text path. The sender-supplied `header.from` is not trusted:
+          // a peer could omit or spoof it, and a bridge keying off
+          // `frame.header.from` would otherwise see inconsistent values
+          // between the text and binary paths.
+          header: { ...header, from: pigeon.id },
           payload,
           version,
         });
