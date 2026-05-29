@@ -13,4 +13,5 @@ export type {
   Msg,
   msgFromServer,
   ParsedBinaryFrame,
+  ReceivedBinaryFrameHeader,
 } from "./lib/util.ts";
