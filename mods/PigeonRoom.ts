@@ -167,6 +167,7 @@ export class PigeonRoom {
           {
             type: header.type,
             body: header.body,
+            payloadMeta: header.payloadMeta,
             address: pigeon.address,
             to,
             from: pigeon.id,
@@ -307,6 +308,7 @@ export class PigeonRoom {
         type: msg.type,
         to,
         body: msg.body as BinaryFrameHeader["body"],
+        payloadMeta: msg.payloadMeta,
         from,
         address,
         timestamp: Date.now(),

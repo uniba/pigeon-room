@@ -124,9 +124,9 @@ addEventListener("load", () => {
           size: file.size,
           mimeType: file.type,
         };
-        const frame = buildBinaryFrame({ type, to, body: fileMeta }, payload);
+        const frame = buildBinaryFrame({ type, to, body, payloadMeta: fileMeta }, payload);
         ws.send(frame);
-        writeSentLog({ type, to, body: fileMeta }, { payloadMeta: fileMeta, byteLength: file.size });
+        writeSentLog({ type, to, body, payloadMeta: fileMeta }, { payloadMeta: fileMeta, byteLength: file.size });
         binFileInput.value = "";
       } else {
         const msg = { to: [to].flat(), body, type };
@@ -258,7 +258,7 @@ const appendLog = (logElement: HTMLLIElement) => {
 type FileMeta = { name: string; size: number; mimeType: string };
 
 const writeSentLog = (
-  msg: { type: string; to?: unknown; body?: unknown },
+  msg: { type: string; to?: unknown; body?: unknown; payloadMeta?: unknown },
   attachment?: { payloadMeta: FileMeta; byteLength: number },
 ) => {
   const { to, body, type } = msg;
@@ -291,9 +291,8 @@ const writeReceiveLog = (
   const bodyString = JSON.stringify(body);
 
   let attachmentHtml = "";
-  const metaSource = (payloadMeta ?? body);
-  if (payload && metaSource && typeof metaSource === "object" && "name" in metaSource) {
-    const meta = metaSource as Partial<FileMeta>;
+  if (payload && payloadMeta && typeof payloadMeta === "object" && "name" in payloadMeta) {
+    const meta = payloadMeta as Partial<FileMeta>;
     const fileName = meta.name ?? "download";
     const mimeType = meta.mimeType ?? "application/octet-stream";
     const blob = new Blob([payload.slice()], { type: mimeType });

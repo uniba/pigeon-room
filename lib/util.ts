@@ -18,6 +18,7 @@ export type Msg<T = string> = {
 
 export type msgFromServer = Pick<Msg, "type" | "body" | "address" | "to"> & {
   from: ClientId | "host";
+  payloadMeta?: unknown;
 };
 
 export { BINARY_FRAME_VERSION, MAX_HEADER_BYTES };
