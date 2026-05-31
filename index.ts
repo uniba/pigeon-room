@@ -10,8 +10,5 @@ export type {
   Address,
   BinaryFrameHeader,
   ClientId,
-  Msg,
-  msgFromServer,
   ParsedBinaryFrame,
-  ReceivedBinaryFrameHeader,
 } from "./lib/util.ts";

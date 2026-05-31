@@ -1,9 +1,17 @@
 import {
+  FORMAT_VERSION,
+  type Message,
+  type ReceivedTextMessage,
+  type TextMessage,
+} from "@circuitlab/pigeon-message";
+import {
   type BinaryFrameHeader,
   buildBinaryFrame,
-  type Msg,
-  type msgFromServer,
+  type NoIndex,
   parseBinaryFrame,
+  parseTextFrame,
+  type ReceivedTextMessageV0,
+  type TextMessageV0,
 } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
 
@@ -11,7 +19,7 @@ export type IncomingFrame =
   | {
     kind: "text";
     pigeon: Pigeon;
-    msg: Msg;
+    msg: Message;
   }
   | {
     kind: "binary";
@@ -84,15 +92,14 @@ export class PigeonRoom {
 
     pigeon.on("open", () => {
       this.sendMsg({
+        ver: FORMAT_VERSION,
         type: "init",
         address: pigeon.address,
         body: {
           id: pigeon.id,
           clients: [
             ...this.pigeons
-              .filter((p) => {
-                return p.address === pigeon.address;
-              })
+              .filter((p) => p.address === pigeon.address)
               .map((p) => p.id),
           ],
         },
@@ -101,23 +108,20 @@ export class PigeonRoom {
       });
 
       this.sendMsg({
+        ver: FORMAT_VERSION,
         type: "clientOpen",
         address: pigeon.address,
         body: {
           id: pigeon.id,
           clients: [
             ...this.pigeons
-              .filter((p) => {
-                return p.address === pigeon.address;
-              })
+              .filter((p) => p.address === pigeon.address)
               .map((p) => p.id),
           ],
         },
         to: [
           ...this.pigeons
-            .filter((p) => {
-              return p.id !== pigeon.id && p.address === pigeon.address;
-            })
+            .filter((p) => p.id !== pigeon.id && p.address === pigeon.address)
             .map((p) => p.id),
         ],
         from: "host",
@@ -125,19 +129,20 @@ export class PigeonRoom {
     });
 
     pigeon.on("message", (event) => {
-      // Binary frame: parse header, fire hooks, then relay (unless host-only).
+      // Binary frame (v1+): parse, fire hooks, relay.
       if (event.data instanceof ArrayBuffer) {
         let parsed;
         try {
           parsed = parseBinaryFrame(event.data);
         } catch (e) {
-          console.warn(
-            "Invalid binary frame from",
-            pigeon.id,
-            (e as Error).message,
-          );
+          console.warn("Invalid binary frame from", pigeon.id, (e as Error).message);
           return;
         }
+        // Binary frames exist only from v1 onward (there is no v0 binary). The
+        // leading ver byte is preserved on relay but always interpreted as v1:
+        // v0 maps to the first binary implementation (= v1), and unknown future
+        // versions fall back to the v1 baseline until this room learns to parse
+        // them.
         const { header, payload, ver } = parsed;
 
         if (!header || header.type === undefined || header.body === undefined) {
@@ -160,9 +165,8 @@ export class PigeonRoom {
 
         const to = [header.to ?? []].flat();
         // Suppress relay when the message is addressed only to the host.
-        if (to.length > 0 && to.every((t) => t === "host")) {
-          return;
-        }
+        if (to.length > 0 && to.every((t) => t === "host")) return;
+
         this.sendBinary(
           {
             type: header.type,
@@ -178,59 +182,66 @@ export class PigeonRoom {
         return;
       }
 
-      // Text frame: existing behavior.
-      let parsed: unknown;
-
+      // Text frame: parse with version-aware parser.
+      let parsedMsg: TextMessageV0 | TextMessage;
       try {
-        parsed = JSON.parse(event.data);
-      } catch (_e) {
-        console.warn("Invalid JSON:", event.data);
+        parsedMsg = parseTextFrame(JSON.parse(event.data));
+      } catch (e) {
+        console.warn("Invalid text frame from", pigeon.id, (e as Error).message);
         return;
       }
 
-      if (!parsed || typeof parsed !== "object") {
-        console.warn("Parsed data is not an object:", parsed);
-        return;
-      }
-
-      const { body, type } = parsed as Msg;
-      let { to = [] } = parsed as Msg;
+      const { body, type } = parsedMsg;
+      const to = [parsedMsg.to ?? []].flat();
 
       if (body === undefined || type === undefined) {
-        console.warn("Missing required fields:", parsed);
+        console.warn("Missing required fields:", parsedMsg);
         return;
       }
-
-      to = [to].flat();
 
       this.#fireHooks({
         kind: "text",
         pigeon,
-        msg: {
-          type,
-          body,
-          to,
-          from: pigeon.id,
-          address: pigeon.address,
-        },
+        msg: { ...parsedMsg, from: pigeon.id, address: pigeon.address },
       });
 
-      if (to.every((to) => to == "host")) {
+      if (to.every((t) => t === "host")) {
         if (type === "ping") {
           this.#pong([pigeon.id]);
           return;
         }
+        return;
       }
-      if (!to.every((to) => to == "host")) {
-        this.sendMsg({
-          type,
-          body,
-          address: pigeon.address,
-          to,
-          from: pigeon.id,
-        });
+
+      // Relay: preserve the sender's ver. v1 is relayed natively; v0 and any
+      // unknown version are relayed best-effort as v0 (the original ver field,
+      // if present, is preserved by the spread).
+      const ver = "ver" in parsedMsg ? (parsedMsg as TextMessage).ver : 0;
+      switch (ver) {
+        case 1:
+          this.sendMsg({
+            ...(parsedMsg as TextMessage),
+            address: pigeon.address,
+            to,
+            from: pigeon.id,
+          });
+          break;
+        case 0:
+          this.sendMsgV0({
+            ...(parsedMsg as TextMessageV0),
+            address: pigeon.address,
+            to,
+            from: pigeon.id,
+          });
+          break;
+        default:
+          this.sendMsgV0({
+            ...(parsedMsg as TextMessageV0),
+            address: pigeon.address,
+            to,
+            from: pigeon.id,
+          });
       }
-      return;
     });
 
     pigeon.on("close", () => {
@@ -241,23 +252,20 @@ export class PigeonRoom {
       // one) was evicted from the list.
       this.pigeons = this.pigeons.filter((c) => c !== pigeon);
       this.sendMsg({
+        ver: FORMAT_VERSION,
         type: "clientClose",
         body: {
           id: pigeon.id,
           clients: [
             ...this.pigeons
-              .filter((p) => {
-                return p.address === pigeon.address;
-              })
+              .filter((p) => p.address === pigeon.address)
               .map((p) => p.id),
           ],
         },
         address: pigeon.address,
         to: [
           ...this.pigeons
-            .filter((p) => {
-              return p.id !== pigeon.id && p.address === pigeon.address;
-            })
+            .filter((p) => p.id !== pigeon.id && p.address === pigeon.address)
             .map((p) => p.id),
         ],
         from: "host",
@@ -267,38 +275,43 @@ export class PigeonRoom {
     return pigeon;
   }
 
-  sendMsg(msg: msgFromServer): void {
+  // Send a v1 text message. timestamp is always set by the room.
+  sendMsg(msg: Omit<NoIndex<ReceivedTextMessage>, "timestamp">): void {
+    const { address, from, to } = msg;
+    const targetPigeons = this.#resolveTargets(address, from, to as string[]);
+    try {
+      const msgBody = JSON.stringify({ ...msg, timestamp: Date.now() });
+      targetPigeons.forEach((p) => p.socket.send(msgBody));
+    } catch (e) {
+      if (e instanceof Error) throw new Error(e.message);
+      throw new Error("caught unknown error");
+    }
+  }
+
+  // Send a v0 text message (no ver field). timestamp is always set by the room.
+  sendMsgV0(msg: Omit<ReceivedTextMessageV0, "timestamp">): void {
     const { address, from, to } = msg;
     const targetPigeons = this.#resolveTargets(address, from, to);
     try {
-      const msgBody = JSON.stringify({
-        ...msg,
-        timestamp: new Date().getTime(),
-      });
-      targetPigeons.forEach((socket) => {
-        socket.socket.send(msgBody);
-      });
+      const msgBody = JSON.stringify({ ...msg, timestamp: Date.now() });
+      targetPigeons.forEach((p) => p.socket.send(msgBody));
     } catch (e) {
-      if (e instanceof Error) {
-        throw new Error(e.message);
-      } else {
-        throw new Error("caught unknown error");
-      }
+      if (e instanceof Error) throw new Error(e.message);
+      throw new Error("caught unknown error");
     }
   }
 
   /**
-   * Send a binary frame to recipients in `header.address`. The frame is
-   * rebuilt so that header.from / header.address / header.timestamp are
-   * authoritatively set by the host (mirrors sendMsg semantics).
+   * Send a binary frame (v1+). The frame is rebuilt so that from / address /
+   * timestamp are authoritatively set by the host.
    */
   sendBinary(
-    msg: msgFromServer,
+    msg: NoIndex<BinaryFrameHeader> & { from: string; address: string },
     payload: Uint8Array,
     version?: number,
   ): void {
     const { address, from, to } = msg;
-    const targetPigeons = this.#resolveTargets(address, from, to);
+    const targetPigeons = this.#resolveTargets(address, from, to as string[]);
     // Nothing to relay to — skip building the frame. The payload can be large
     // (e.g. ~100 KB depth frames at 30 Hz), so avoid the allocation + copy
     // when no recipient would receive it.
@@ -306,12 +319,11 @@ export class PigeonRoom {
     const frame = buildBinaryFrame(
       {
         type: msg.type,
-        to,
+        to: msg.to,
         body: msg.body as BinaryFrameHeader["body"],
         payloadMeta: msg.payloadMeta,
         from,
         address,
-        timestamp: Date.now(),
       },
       payload,
       version,
@@ -329,16 +341,10 @@ export class PigeonRoom {
     }
   }
 
-  #resolveTargets(
-    address: string,
-    from: string,
-    to: ("all" | "others" | string)[],
-  ): Pigeon[] {
-    const clientsInTargetAddress: Pigeon[] = this.pigeons.filter((socket) => {
-      // TODO: to: [`${id}@${address}`]などで送信できるようにする
-      // TODO: addressが任意なので、?address=allで接続されると困るのをどうにかする。
-      return socket.address === address || address === "all";
-    });
+  #resolveTargets(address: string, from: string, to: string[]): Pigeon[] {
+    const clientsInTargetAddress = this.pigeons.filter(
+      (p) => p.address === address || address === "all",
+    );
 
     const targetPigeons: Pigeon[] = [];
     if (to.includes("all") || to.includes("others")) {
@@ -346,29 +352,24 @@ export class PigeonRoom {
         targetPigeons.push(...clientsInTargetAddress);
       } else if (to.includes("others")) {
         targetPigeons.push(
-          ...clientsInTargetAddress.filter((client) => client.id !== from),
+          ...clientsInTargetAddress.filter((c) => c.id !== from),
         );
       }
     } else {
       targetPigeons.push(
-        ...clientsInTargetAddress.filter((client) => to.includes(client.id)),
+        ...clientsInTargetAddress.filter((c) => to.includes(c.id)),
       );
     }
 
-    return targetPigeons.reduce<Pigeon[]>(
-      (previousClients, targetClient) => {
-        const isUniqueClient = !previousClients
-          .map((ws) => ws.id)
-          .includes(targetClient.id);
-        if (isUniqueClient) previousClients.push(targetClient);
-        return previousClients;
-      },
-      [],
-    );
+    return targetPigeons.reduce<Pigeon[]>((prev, cur) => {
+      if (!prev.map((p) => p.id).includes(cur.id)) prev.push(cur);
+      return prev;
+    }, []);
   }
 
   #ping() {
     this.sendMsg({
+      ver: FORMAT_VERSION,
       to: ["all"],
       address: "all",
       type: "ping",
@@ -379,6 +380,7 @@ export class PigeonRoom {
 
   #pong(to: string[]) {
     this.sendMsg({
+      ver: FORMAT_VERSION,
       to,
       type: "pong",
       address: "all",
