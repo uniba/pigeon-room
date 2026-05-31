@@ -23,6 +23,8 @@ export type msgFromServer = Pick<Msg, "type" | "body" | "address" | "to"> & {
 
 export { BINARY_FRAME_VERSION, MAX_HEADER_BYTES };
 export type { BinaryFrameHeader, ParsedBinaryFrame };
+/** @deprecated Use {@link BinaryFrameHeader} instead. */
+export type { BinaryFrameHeader as ReceivedBinaryFrameHeader };
 
 export function parseBinaryFrame(buf: ArrayBuffer): ParsedBinaryFrame {
   if (buf.byteLength < 3) {
