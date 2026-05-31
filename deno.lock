@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@akisoqls/random-string@~0.1.1": "0.1.1",
     "jsr:@circuitlab/pigeon-link@0.2": "0.2.0",
+    "jsr:@circuitlab/pigeon-message@1": "1.0.0",
     "jsr:@hono/hono@^4.12.9": "4.12.9",
     "npm:@line/bot-sdk@*": "10.6.0",
     "npm:express@4": "4.18.2",
@@ -14,6 +15,9 @@
     },
     "@circuitlab/pigeon-link@0.2.0": {
       "integrity": "fb1b4bff5f300d19af41a4cf12b3dc350455065d4f2da8d95a4a489d807dc8f1"
+    },
+    "@circuitlab/pigeon-message@1.0.0": {
+      "integrity": "27fb58aefd4cf30cecd1c13d7a717d1a7fbd68c4bd09185606f56c729abf287c"
     },
     "@hono/hono@4.12.9": {
       "integrity": "53c2b0a721c1d782e6a347ad5bf15a3235ff624b98859c21f779b7ee2f5e040e"
@@ -1356,7 +1360,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@akisoqls/random-string@~0.1.1"
+      "jsr:@akisoqls/random-string@~0.1.1",
+      "jsr:@circuitlab/pigeon-message@1"
     ],
     "members": {
       "examples/console": {

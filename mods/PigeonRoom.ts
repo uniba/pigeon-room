@@ -1,10 +1,9 @@
 import {
-  BinaryFrameHeader,
+  type BinaryFrameHeader,
   buildBinaryFrame,
-  Msg,
-  msgFromServer,
+  type Msg,
+  type msgFromServer,
   parseBinaryFrame,
-  ReceivedBinaryFrameHeader,
 } from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
 
@@ -17,9 +16,9 @@ export type IncomingFrame =
   | {
     kind: "binary";
     pigeon: Pigeon;
-    header: ReceivedBinaryFrameHeader;
+    header: BinaryFrameHeader;
     payload: Uint8Array;
-    version: number;
+    ver: number;
   };
 
 export type FrameHook = (frame: IncomingFrame) => void;
@@ -139,7 +138,7 @@ export class PigeonRoom {
           );
           return;
         }
-        const { header, payload, version } = parsed;
+        const { header, payload, ver } = parsed;
 
         if (!header || header.type === undefined || header.body === undefined) {
           console.warn("Binary frame header missing required fields:", header);
@@ -156,7 +155,7 @@ export class PigeonRoom {
           // between the text and binary paths.
           header: { ...header, from: pigeon.id },
           payload,
-          version,
+          ver,
         });
 
         const to = [header.to ?? []].flat();
@@ -173,7 +172,7 @@ export class PigeonRoom {
             from: pigeon.id,
           },
           payload,
-          version,
+          ver,
         );
         return;
       }
