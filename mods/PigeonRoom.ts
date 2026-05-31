@@ -1,11 +1,35 @@
-import { Msg, msgFromServer } from "../lib/util.ts";
+import {
+  type BinaryFrameHeader,
+  buildBinaryFrame,
+  type Msg,
+  type msgFromServer,
+  parseBinaryFrame,
+} from "../lib/util.ts";
 import { Pigeon } from "./Pigeon.ts";
+
+export type IncomingFrame =
+  | {
+    kind: "text";
+    pigeon: Pigeon;
+    msg: Msg;
+  }
+  | {
+    kind: "binary";
+    pigeon: Pigeon;
+    header: BinaryFrameHeader;
+    payload: Uint8Array;
+    ver: number;
+  };
+
+export type FrameHook = (frame: IncomingFrame) => void;
 
 export class PigeonRoom {
   public pigeons: Pigeon[];
+  #hooks: FrameHook[];
 
   constructor() {
     this.pigeons = [];
+    this.#hooks = [];
 
     setInterval(() => {
       if (this.pigeons.length) {
@@ -24,12 +48,21 @@ export class PigeonRoom {
     }, 30000);
   }
 
+  /**
+   * Register a hook fired for every parsed incoming frame (text or binary),
+   * regardless of routing target. Used by in-process consumers (e.g. the
+   * archive-server bridge that forwards upstream frames to downstream).
+   */
+  public onFrame(hook: FrameHook): void {
+    this.#hooks.push(hook);
+  }
+
   handleReqest(req: Request): Response {
     const url = new URL(req.url);
 
     const address = url.searchParams.get("address");
-    const id =
-      url.searchParams.get("initas") || url.searchParams.get("staticid");
+    const id = url.searchParams.get("initas") ||
+      url.searchParams.get("staticid");
     if (address) {
       if (id) {
         const pigeon = new Pigeon(req, id);
@@ -92,6 +125,60 @@ export class PigeonRoom {
     });
 
     pigeon.on("message", (event) => {
+      // Binary frame: parse header, fire hooks, then relay (unless host-only).
+      if (event.data instanceof ArrayBuffer) {
+        let parsed;
+        try {
+          parsed = parseBinaryFrame(event.data);
+        } catch (e) {
+          console.warn(
+            "Invalid binary frame from",
+            pigeon.id,
+            (e as Error).message,
+          );
+          return;
+        }
+        const { header, payload, ver } = parsed;
+
+        if (!header || header.type === undefined || header.body === undefined) {
+          console.warn("Binary frame header missing required fields:", header);
+          return;
+        }
+
+        this.#fireHooks({
+          kind: "binary",
+          pigeon,
+          // Authoritatively set `from` to the sending pigeon's id, mirroring
+          // the text path. The sender-supplied `header.from` is not trusted:
+          // a peer could omit or spoof it, and a bridge keying off
+          // `frame.header.from` would otherwise see inconsistent values
+          // between the text and binary paths.
+          header: { ...header, from: pigeon.id },
+          payload,
+          ver,
+        });
+
+        const to = [header.to ?? []].flat();
+        // Suppress relay when the message is addressed only to the host.
+        if (to.length > 0 && to.every((t) => t === "host")) {
+          return;
+        }
+        this.sendBinary(
+          {
+            type: header.type,
+            body: header.body,
+            payloadMeta: header.payloadMeta,
+            address: pigeon.address,
+            to,
+            from: pigeon.id,
+          },
+          payload,
+          ver,
+        );
+        return;
+      }
+
+      // Text frame: existing behavior.
       let parsed: unknown;
 
       try {
@@ -115,6 +202,19 @@ export class PigeonRoom {
       }
 
       to = [to].flat();
+
+      this.#fireHooks({
+        kind: "text",
+        pigeon,
+        msg: {
+          type,
+          body,
+          to,
+          from: pigeon.id,
+          address: pigeon.address,
+        },
+      });
+
       if (to.every((to) => to == "host")) {
         if (type === "ping") {
           this.#pong([pigeon.id]);
@@ -169,42 +269,12 @@ export class PigeonRoom {
 
   sendMsg(msg: msgFromServer): void {
     const { address, from, to } = msg;
-    let targetPigeons: Pigeon[] = [];
+    const targetPigeons = this.#resolveTargets(address, from, to);
     try {
       const msgBody = JSON.stringify({
         ...msg,
         timestamp: new Date().getTime(),
       });
-      const clientsInTargetAddress: Pigeon[] = this.pigeons.filter((socket) => {
-        // TODO: to: [`${id}@${address}`]などで送信できるようにする
-        // TODO: addressが任意なので、?address=allで接続されると困るのをどうにかする。
-        return socket.address === address || address === "all";
-      });
-
-      if (to.includes("all") || to.includes("others")) {
-        if (to.includes("all") || to.includes(from)) {
-          targetPigeons.push(...clientsInTargetAddress);
-        } else if (to.includes("others")) {
-          targetPigeons.push(
-            ...clientsInTargetAddress.filter((client) => client.id !== from),
-          );
-        }
-      } else {
-        targetPigeons.push(
-          ...clientsInTargetAddress.filter((client) => to.includes(client.id)),
-        );
-      }
-
-      targetPigeons = targetPigeons.reduce(
-        (previousClients: Pigeon[], targetClient: Pigeon) => {
-          const isUniqueClient = !previousClients
-            .map((ws) => ws.id)
-            .includes(targetClient.id);
-          if (isUniqueClient) previousClients.push(targetClient);
-          return previousClients;
-        },
-        [],
-      );
       targetPigeons.forEach((socket) => {
         socket.socket.send(msgBody);
       });
@@ -215,6 +285,86 @@ export class PigeonRoom {
         throw new Error("caught unknown error");
       }
     }
+  }
+
+  /**
+   * Send a binary frame to recipients in `header.address`. The frame is
+   * rebuilt so that header.from / header.address / header.timestamp are
+   * authoritatively set by the host (mirrors sendMsg semantics).
+   */
+  sendBinary(
+    msg: msgFromServer,
+    payload: Uint8Array,
+    version?: number,
+  ): void {
+    const { address, from, to } = msg;
+    const targetPigeons = this.#resolveTargets(address, from, to);
+    // Nothing to relay to — skip building the frame. The payload can be large
+    // (e.g. ~100 KB depth frames at 30 Hz), so avoid the allocation + copy
+    // when no recipient would receive it.
+    if (targetPigeons.length === 0) return;
+    const frame = buildBinaryFrame(
+      {
+        type: msg.type,
+        to,
+        body: msg.body as BinaryFrameHeader["body"],
+        payloadMeta: msg.payloadMeta,
+        from,
+        address,
+        timestamp: Date.now(),
+      },
+      payload,
+      version,
+    );
+    targetPigeons.forEach((p) => p.socket.send(frame));
+  }
+
+  #fireHooks(frame: IncomingFrame): void {
+    for (const hook of this.#hooks) {
+      try {
+        hook(frame);
+      } catch (e) {
+        console.warn("frame hook threw:", e);
+      }
+    }
+  }
+
+  #resolveTargets(
+    address: string,
+    from: string,
+    to: ("all" | "others" | string)[],
+  ): Pigeon[] {
+    const clientsInTargetAddress: Pigeon[] = this.pigeons.filter((socket) => {
+      // TODO: to: [`${id}@${address}`]などで送信できるようにする
+      // TODO: addressが任意なので、?address=allで接続されると困るのをどうにかする。
+      return socket.address === address || address === "all";
+    });
+
+    const targetPigeons: Pigeon[] = [];
+    if (to.includes("all") || to.includes("others")) {
+      if (to.includes("all") || to.includes(from)) {
+        targetPigeons.push(...clientsInTargetAddress);
+      } else if (to.includes("others")) {
+        targetPigeons.push(
+          ...clientsInTargetAddress.filter((client) => client.id !== from),
+        );
+      }
+    } else {
+      targetPigeons.push(
+        ...clientsInTargetAddress.filter((client) => to.includes(client.id)),
+      );
+    }
+
+    return targetPigeons.reduce<Pigeon[]>(
+      (previousClients, targetClient) => {
+        const isUniqueClient = !previousClients
+          .map((ws) => ws.id)
+          .includes(targetClient.id);
+        if (isUniqueClient) previousClients.push(targetClient);
+        return previousClients;
+      },
+      [],
+    );
   }
 
   #ping() {
