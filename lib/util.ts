@@ -3,26 +3,78 @@ import {
   MAX_HEADER_BYTES,
   type BinaryFrameHeader,
   type ParsedBinaryFrame,
+  type TextMessage,
 } from "@circuitlab/pigeon-message";
 
 export type ClientId = string;
 export type Address = string;
 
-export type Msg<T = string> = {
-  type: "ping" | "pong" | "message" | "clientOpen" | "clientClose" | "init" | T;
-  body: unknown;
-  address: Address | "all";
-  to: ("all" | "others" | ClientId)[];
-  from?: ClientId | "host";
+/** Strips the index signature from T, leaving only explicitly declared properties. */
+export type NoIndex<T> = {
+  [K in keyof T as string extends K ? never : K]: T[K]
 };
 
-export type msgFromServer = Pick<Msg, "type" | "body" | "address" | "to"> & {
-  from: ClientId | "host";
-  payloadMeta?: unknown;
+// v0 text message — no `ver` field; binary frames not supported in v0
+export type TextMessageV0 = {
+  type: string;
+  to: string[];
+  body: unknown;
+  from?: string;
+  address?: string;
+  timestamp?: number;
 };
+
+export type ReceivedTextMessageV0 = TextMessageV0 & {
+  from: string;
+  address: string;
+  timestamp: number;
+};
+
+export function parseTextFrameV0(parsed: unknown): TextMessageV0 {
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("not an object");
+  }
+  const msg = parsed as Record<string, unknown>;
+  if (typeof msg.type !== "string") throw new Error("missing type");
+  if (!Array.isArray(msg.to)) throw new Error("missing to");
+  return parsed as TextMessageV0;
+}
+
+export function parseTextFrameV1(parsed: unknown): TextMessage {
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("not an object");
+  }
+  const msg = parsed as Record<string, unknown>;
+  if (msg.ver !== 1) throw new Error("expected ver 1");
+  if (typeof msg.type !== "string") throw new Error("missing type");
+  if (!Array.isArray(msg.to)) throw new Error("missing to");
+  return parsed as TextMessage;
+}
+
+export function parseTextFrame(parsed: unknown): TextMessageV0 | TextMessage {
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("not an object");
+  }
+  const ver = (parsed as Record<string, unknown>).ver;
+  switch (ver) {
+    case 1:
+      return parseTextFrameV1(parsed);
+    case 0:
+      // Explicit v0.
+      return parseTextFrameV0(parsed);
+    case undefined:
+      // Absent ver ⇒ v0 (spec: "ver absent ⇒ v0").
+      return parseTextFrameV0(parsed);
+    default:
+      // Unknown future version ⇒ best-effort fallback to v0. The routing
+      // envelope (to/from/address) is shared across versions, so the room can
+      // still relay even when it doesn't understand the sender's version.
+      return parseTextFrameV0(parsed);
+  }
+}
 
 export { BINARY_FRAME_VERSION, MAX_HEADER_BYTES };
-export type { BinaryFrameHeader, ParsedBinaryFrame };
+export type { BinaryFrameHeader, ParsedBinaryFrame, TextMessage };
 
 export function parseBinaryFrame(buf: ArrayBuffer): ParsedBinaryFrame {
   if (buf.byteLength < 3) {
