@@ -8,10 +8,18 @@ To develop this project, please check that the deno runtime is managed via the a
 
 For more information, refer to the [asdf guide](https://asdf-vm.com/guide/getting-started.html) and the [asdf-deno plugin documentation](https://github.com/asdf-community/asdf-deno).
 
+## Protocol
+
+This implementation conforms to [pigeon-message v1](https://jsr.io/@circuitlab/pigeon-message).
+
+The wire formats for both text and binary messages are defined by that spec.
+
 ## Related modules
 
 - [@circuitlab/pigeon-link](https://jsr.io/@circuitlab/pigeon-link)
     - helper module for connection pigeon room
+- [@circuitlab/pigeon-message](https://jsr.io/@circuitlab/pigeon-message)
+    - protocol specification (wire formats for text and binary messages)
 
 ## API Guide
 

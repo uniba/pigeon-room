@@ -14,6 +14,8 @@ export class Pigeon {
 
     const { socket, response } = Deno.upgradeWebSocket(request);
     this.socket = socket;
+    // Receive binary frames as ArrayBuffer for zero-copy header parsing.
+    this.socket.binaryType = "arraybuffer";
     this.response = response;
     this.id = id || generateRandomString(8);
     this.lastMessageTime = 0;
