@@ -1,6 +1,6 @@
 {
   "name": "@circuitlab/pigeon-room",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "license": "MIT",
   "exports": "./index.ts",
   "tasks": {
