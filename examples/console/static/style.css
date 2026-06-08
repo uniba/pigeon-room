@@ -32,7 +32,6 @@ label {
 p {
   color: #fff;
   font-size: 12px;
-  cursor: pointer;
 }
 
 span {
@@ -48,6 +47,12 @@ input {
 
 input[type="text"] {
   height: 24px;
+}
+
+input[type="file"] {
+  font-size: 12px;
+  background-color: #000;
+  color: #fff;
 }
 
 section.input {
@@ -211,6 +216,22 @@ main ul#msgs li > div.message_type.clientOpen header {
 }
 main ul#msgs li > div.message_type.clientClose header {
   border-color: #09f;
+}
+main ul#msgs li p.payload_line {
+  margin-top: 8px;
+}
+main ul#msgs li p.payload_line,
+main ul#msgs li p.payload_line a.download_link,
+main ul#msgs li p.payload_line span.file_meta {
+  font-size: 12px;
+}
+a.download_link {
+  color: #0f8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+span.file_meta {
+  color: #888;
 }
 main section.log_setting {
   position: fixed;
