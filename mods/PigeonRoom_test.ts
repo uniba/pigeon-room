@@ -1,4 +1,5 @@
 import { PigeonRoom } from "./PigeonRoom.ts";
+import type { Pigeon } from "./Pigeon.ts";
 
 /** Serve a room on an ephemeral port and hand back its ws:// base URL. */
 function serveRoom(): {
@@ -35,11 +36,35 @@ function awaitType(ws: WebSocket, type: string): Promise<void> {
   });
 }
 
+/**
+ * A stand-in for a peer whose socket cannot receive. Delivery only touches
+ * id / address / socket.readyState / socket.send, and `send()` throws exactly
+ * like a real non-OPEN socket does.
+ */
+function stubPigeon(id: string, address: string, readyState: number): Pigeon {
+  return {
+    id,
+    address,
+    lastMessageTime: Date.now(),
+    socket: {
+      readyState,
+      send() {
+        throw new Error("'readyState' not OPEN");
+      },
+      close() {},
+    },
+  } as unknown as Pigeon;
+}
+
 // A pigeon joins `room.pigeons` at upgrade time, so it is a delivery target
 // while its socket is still CONNECTING — and `send()` on a non-OPEN socket
 // throws. Delivery must skip such a peer rather than fail the whole fan-out.
+// Undeliverable peers are injected as stubs (a real localhost handshake
+// completes too quickly to hold a socket in CONNECTING deterministically) and
+// placed BEFORE the live peer, so an aborted fan-out would demonstrably
+// silence it.
 Deno.test({
-  name: "sendMsg skips a target whose socket is not OPEN",
+  name: "delivery skips non-OPEN sockets and survives a throwing send",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -48,12 +73,16 @@ Deno.test({
     const a = connect(url, "room-1", "peer-a");
     await awaitType(a, "init");
 
-    // peer-b is registered on upgrade but its socket has not opened yet.
-    const b = connect(url, "room-1", "peer-b");
-    while (room.pigeons.length < 2) await new Promise((r) => setTimeout(r, 1));
+    // Ahead of peer-a in delivery order: one socket still CONNECTING (must be
+    // skipped) and one that reports OPEN but throws on send (a socket can
+    // close between the readyState check and the send — must be caught).
+    room.pigeons.unshift(
+      stubPigeon("peer-connecting", "room-1", WebSocket.CONNECTING),
+      stubPigeon("peer-dead", "room-1", WebSocket.OPEN),
+    );
 
-    // Before the fix this threw `'readyState' not OPEN`, aborting delivery to
-    // every peer after the CONNECTING one.
+    // Before the fix the first stub threw `'readyState' not OPEN`, aborting
+    // delivery to every peer after it — peer-a never got the message.
     const delivered = awaitType(a, "custom");
     room.sendMsg({
       ver: 1,
@@ -66,7 +95,6 @@ Deno.test({
     await delivered;
 
     a.close();
-    b.close();
     await shutdown();
   },
 });
