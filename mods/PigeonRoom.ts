@@ -135,7 +135,11 @@ export class PigeonRoom {
         try {
           parsed = parseBinaryFrame(event.data);
         } catch (e) {
-          console.warn("Invalid binary frame from", pigeon.id, (e as Error).message);
+          console.warn(
+            "Invalid binary frame from",
+            pigeon.id,
+            (e as Error).message,
+          );
           return;
         }
         // Binary frames exist only from v1 onward (there is no v0 binary). The
@@ -187,7 +191,11 @@ export class PigeonRoom {
       try {
         parsedMsg = parseTextFrame(JSON.parse(event.data));
       } catch (e) {
-        console.warn("Invalid text frame from", pigeon.id, (e as Error).message);
+        console.warn(
+          "Invalid text frame from",
+          pigeon.id,
+          (e as Error).message,
+        );
         return;
       }
 
@@ -275,30 +283,49 @@ export class PigeonRoom {
     return pigeon;
   }
 
+  /**
+   * Deliver to every target that can actually receive right now.
+   *
+   * A pigeon joins `this.pigeons` when its request is upgraded, which is
+   * before its socket reaches OPEN, and it may close at any moment after.
+   * `send()` on such a socket throws `'readyState' not OPEN`. Sends originate
+   * inside WebSocket event listeners (a client's `open` fans `clientOpen` out
+   * to its peers), so an escaping throw is an uncaught exception that takes
+   * the whole host process down — two clients connecting at the same instant
+   * are enough to do it.
+   *
+   * One unreachable peer must also never abort the fan-out to the others.
+   */
+  #deliver(targets: Pigeon[], data: string | ArrayBuffer): void {
+    for (const pigeon of targets) {
+      if (pigeon.socket.readyState !== WebSocket.OPEN) continue;
+      try {
+        pigeon.socket.send(data);
+      } catch (e) {
+        // The socket can close between the check and the send.
+        console.warn(`send to pigeon ${pigeon.id} failed:`, e);
+      }
+    }
+  }
+
   // Send a v1 text message. timestamp is always set by the room.
   sendMsg(msg: Omit<NoIndex<ReceivedTextMessage>, "timestamp">): void {
     const { address, from, to } = msg;
     const targetPigeons = this.#resolveTargets(address, from, to as string[]);
-    try {
-      const msgBody = JSON.stringify({ ...msg, timestamp: Date.now() });
-      targetPigeons.forEach((p) => p.socket.send(msgBody));
-    } catch (e) {
-      if (e instanceof Error) throw new Error(e.message);
-      throw new Error("caught unknown error");
-    }
+    this.#deliver(
+      targetPigeons,
+      JSON.stringify({ ...msg, timestamp: Date.now() }),
+    );
   }
 
   // Send a v0 text message (no ver field). timestamp is always set by the room.
   sendMsgV0(msg: Omit<ReceivedTextMessageV0, "timestamp">): void {
     const { address, from, to } = msg;
     const targetPigeons = this.#resolveTargets(address, from, to);
-    try {
-      const msgBody = JSON.stringify({ ...msg, timestamp: Date.now() });
-      targetPigeons.forEach((p) => p.socket.send(msgBody));
-    } catch (e) {
-      if (e instanceof Error) throw new Error(e.message);
-      throw new Error("caught unknown error");
-    }
+    this.#deliver(
+      targetPigeons,
+      JSON.stringify({ ...msg, timestamp: Date.now() }),
+    );
   }
 
   /**
@@ -328,7 +355,7 @@ export class PigeonRoom {
       payload,
       version,
     );
-    targetPigeons.forEach((p) => p.socket.send(frame));
+    this.#deliver(targetPigeons, frame);
   }
 
   #fireHooks(frame: IncomingFrame): void {
