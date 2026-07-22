@@ -2,7 +2,9 @@ import { PigeonRoom } from "../../mods/PigeonRoom.ts";
 import { Context, Hono } from "@hono/hono";
 import { serveStatic } from "@hono/hono/deno";
 
-const app = new Hono();
+// strict: false so /pigeon/ (trailing slash) matches too — deployed clients
+// connect with both wss://…/pigeon and wss://…/pigeon/.
+const app = new Hono({ strict: false });
 const pigeonRoom = new PigeonRoom();
 
 app.get("/pigeon", (ctx: Context) => {
