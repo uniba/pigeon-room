@@ -33,6 +33,7 @@ Connect with following params.
     - `address` specifies a string of one or more characters. By connecting to the same `address`, clients can communicate with each other in real time.
 - `staticid`
     - Fix the ID assigned by the server.
+    - More than one connection can hold the same ID at once: a client that reconnects while the room still holds its previous connection, or two clients configured alike. Messages addressed to that ID, and broadcasts, reach every connection holding it, and the room logs a warning when a second connection claims it. `init` and `pong` go only to the connection they answer.
 
 
 ### Messages received from the server

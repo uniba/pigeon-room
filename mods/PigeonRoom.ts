@@ -88,10 +88,17 @@ export class PigeonRoom {
   }
 
   addPigeon(pigeon: Pigeon): Pigeon {
+    const holders = this.pigeons.filter((p) => p.id === pigeon.id).length;
     this.pigeons.push(pigeon);
+    if (holders > 0) {
+      console.warn(
+        `pigeon id "${pigeon.id}" is now held by ${holders + 1} connections; ` +
+          `messages addressed to it reach all of them`,
+      );
+    }
 
     pigeon.on("open", () => {
-      this.sendMsg({
+      this.#sendTo(pigeon, {
         ver: FORMAT_VERSION,
         type: "init",
         address: pigeon.address,
@@ -215,7 +222,7 @@ export class PigeonRoom {
 
       if (to.every((t) => t === "host")) {
         if (type === "ping") {
-          this.#pong([pigeon.id]);
+          this.#pong(pigeon);
           return;
         }
         return;
@@ -318,6 +325,15 @@ export class PigeonRoom {
     );
   }
 
+  // Send a v1 text message to one connection, whatever else holds its id.
+  // timestamp is always set by the room.
+  #sendTo(
+    pigeon: Pigeon,
+    msg: Omit<NoIndex<ReceivedTextMessage>, "timestamp">,
+  ): void {
+    this.#deliver([pigeon], JSON.stringify({ ...msg, timestamp: Date.now() }));
+  }
+
   // Send a v0 text message (no ver field). timestamp is always set by the room.
   sendMsgV0(msg: Omit<ReceivedTextMessageV0, "timestamp">): void {
     const { address, from, to } = msg;
@@ -388,10 +404,8 @@ export class PigeonRoom {
       );
     }
 
-    return targetPigeons.reduce<Pigeon[]>((prev, cur) => {
-      if (!prev.map((p) => p.id).includes(cur.id)) prev.push(cur);
-      return prev;
-    }, []);
+    // Dedupe by connection: every connection holding a target id receives.
+    return [...new Set(targetPigeons)];
   }
 
   #ping() {
@@ -405,10 +419,10 @@ export class PigeonRoom {
     });
   }
 
-  #pong(to: string[]) {
-    this.sendMsg({
+  #pong(pigeon: Pigeon) {
+    this.#sendTo(pigeon, {
       ver: FORMAT_VERSION,
-      to,
+      to: [pigeon.id],
       type: "pong",
       address: "all",
       body: "",
