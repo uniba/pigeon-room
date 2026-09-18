@@ -1,6 +1,6 @@
 import { PigeonRoom } from "./PigeonRoom.ts";
 import type { Pigeon } from "./Pigeon.ts";
-import { parseBinaryFrame } from "../lib/util.ts";
+import { buildBinaryFrame, parseBinaryFrame } from "../lib/util.ts";
 
 /** Serve a room on an ephemeral port and hand back its ws:// base URL. */
 function serveRoom(): {
@@ -276,28 +276,173 @@ Deno.test({
 });
 
 Deno.test({
+  name:
+    '"others" leaves out the sending connection, not every holder of its id',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = serveRoom();
+    const a = await join(url, "room-dup-5", "dup");
+    const b = await join(url, "room-dup-5", "dup");
+    const c = await join(url, "room-dup-5", "other");
+
+    // The three relay paths: v1 text, v0 text (no ver), binary.
+    a.ws.send(JSON.stringify({ ver: 1, type: "v1", to: ["others"], body: 1 }));
+    a.ws.send(JSON.stringify({ type: "v0", to: ["others"], body: 2 }));
+    a.ws.send(
+      buildBinaryFrame(
+        { type: "frame", to: ["others"], body: 3 },
+        new Uint8Array([1, 2, 3]),
+      ),
+    );
+
+    for (const [name, peer] of [["b", b], ["c", c]] as const) {
+      await until(() => count(peer.got, "v1") > 0, `${name}: v1 others`);
+      await until(() => count(peer.got, "v0") > 0, `${name}: v0 others`);
+      await until(() => count(peer.bin, "frame") > 0, `${name}: binary others`);
+    }
+    await settle();
+    for (const [name, peer] of [["b", b], ["c", c]] as const) {
+      assertEquals(count(peer.got, "v1"), 1, `${name}: v1 once`);
+      assertEquals(count(peer.got, "v0"), 1, `${name}: v0 once`);
+      assertEquals(count(peer.bin, "frame"), 1, `${name}: binary once`);
+    }
+    assertEquals(
+      count(a.got, "v1") + count(a.got, "v0") + count(a.bin, "frame"),
+      0,
+      "the sending connection receives none of them",
+    );
+
+    a.ws.close();
+    b.ws.close();
+    c.ws.close();
+    await shutdown();
+  },
+});
+
+Deno.test({
+  name: "clientOpen and clientClose reach a connection sharing the id",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = serveRoom();
+    const about = (got: Received[], type: string, id: string) =>
+      got.filter((m) =>
+        m.type === type && (m.body as { id: string }).id === id
+      );
+
+    const a = await join(url, "room-dup-6", "dup");
+    const c = await join(url, "room-dup-6", "other");
+    const b = await join(url, "room-dup-6", "dup");
+
+    for (const [name, peer] of [["a", a], ["c", c]] as const) {
+      await until(
+        () => about(peer.got, "clientOpen", "dup").length > 0,
+        `${name}: b's clientOpen`,
+      );
+    }
+
+    a.ws.close();
+    for (const [name, peer] of [["b", b], ["c", c]] as const) {
+      await until(
+        () => about(peer.got, "clientClose", "dup").length > 0,
+        `${name}: a's clientClose`,
+      );
+    }
+    await settle();
+
+    assertEquals(
+      count(b.got, "clientOpen"),
+      0,
+      "b is not told of its own open",
+    );
+    const closed = about(b.got, "clientClose", "dup")[0];
+    assertEquals(
+      [...(closed.to as string[])].sort(),
+      ["dup", "other"],
+      "a's clientClose is addressed to b's id too",
+    );
+    assertEquals(
+      [...(closed.body as { clients: string[] }).clients].sort(),
+      ["dup", "other"],
+      "the id is still listed: b holds it",
+    );
+
+    b.ws.close();
+    c.ws.close();
+    await shutdown();
+  },
+});
+
+/** Capture console.warn; `duplicates()` is the duplicate-id warnings alone. */
+function captureWarns() {
+  const warns: string[] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => void warns.push(args.join(" "));
+  return {
+    duplicates: () => warns.filter((w) => w.includes("is now held by")),
+    restore: () => void (console.warn = realWarn),
+  };
+}
+
+Deno.test({
   name: "a second connection under an id already held is logged",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
     const { url, shutdown } = serveRoom();
-    const warns: string[] = [];
-    const realWarn = console.warn;
-    console.warn = (...args: unknown[]) => void warns.push(args.join(" "));
+    const { duplicates, restore } = captureWarns();
+    const sockets: WebSocket[] = [];
     try {
-      const a = await join(url, "room-dup-4", "dup");
-      assertEquals(warns.length, 0, "one connection is not a duplicate");
-      const b = connect(url, "room-dup-4", "dup");
-      await until(() => warns.length > 0, "a duplicate-id warning");
-      assert(
-        warns.some((w) => w.includes('"dup"') && w.includes("2 connections")),
-        `expected a duplicate-id warning, got ${JSON.stringify(warns)}`,
+      sockets.push((await join(url, "room-dup-4", "dup")).ws);
+      assertEquals(duplicates(), [], "one connection is not a duplicate");
+
+      // The warning fires at upgrade, before init: had this one warned, it
+      // would be here by the time join returns.
+      sockets.push((await join(url, "room-dup-4-elsewhere", "dup")).ws);
+      assertEquals(
+        duplicates(),
+        [],
+        "the same id in another address is not a duplicate",
       );
-      a.ws.close();
-      b.close();
+
+      sockets.push(connect(url, "room-dup-4", "dup"));
+      await until(() => duplicates().length > 0, "a duplicate-id warning");
+      const [warning] = duplicates();
+      assert(
+        warning.includes('"dup"') && warning.includes('"room-dup-4"') &&
+          warning.includes("2 connections"),
+        `expected id, address and count in the warning, got ${warning}`,
+      );
     } finally {
-      console.warn = realWarn;
+      restore();
+      for (const ws of sockets) ws.close();
+      await shutdown();
     }
-    await shutdown();
+  },
+});
+
+Deno.test({
+  name: "a client-supplied id cannot forge a log line",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = serveRoom();
+    const { duplicates, restore } = captureWarns();
+    const sockets: WebSocket[] = [];
+    try {
+      const forged = "x\n[FAKE] forged log line";
+      sockets.push((await join(url, "room-dup-7", forged)).ws);
+      sockets.push(connect(url, "room-dup-7", forged));
+      await until(() => duplicates().length > 0, "a duplicate-id warning");
+      assert(
+        duplicates().every((w) => !w.includes("\n")),
+        `expected one line per warning, got ${JSON.stringify(duplicates())}`,
+      );
+    } finally {
+      restore();
+      for (const ws of sockets) ws.close();
+      await shutdown();
+    }
   },
 });
