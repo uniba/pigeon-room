@@ -88,10 +88,23 @@ export class PigeonRoom {
   }
 
   addPigeon(pigeon: Pigeon): Pigeon {
+    // An id is only shared within an address: messages never cross addresses.
+    const holders = this.pigeons.filter(
+      (p) => p.id === pigeon.id && p.address === pigeon.address,
+    ).length;
     this.pigeons.push(pigeon);
+    if (holders > 0) {
+      // id and address are client-supplied: quote them so neither can forge a
+      // log line.
+      console.warn(
+        `pigeon id ${JSON.stringify(pigeon.id)} in address ` +
+          `${JSON.stringify(pigeon.address)} is now held by ${holders + 1} ` +
+          `connections; messages addressed to it reach all of them`,
+      );
+    }
 
     pigeon.on("open", () => {
-      this.sendMsg({
+      this.#sendTo([pigeon], {
         ver: FORMAT_VERSION,
         type: "init",
         address: pigeon.address,
@@ -107,7 +120,8 @@ export class PigeonRoom {
         from: "host",
       });
 
-      this.sendMsg({
+      const peers = this.#peersOf(pigeon);
+      this.#sendTo(peers, {
         ver: FORMAT_VERSION,
         type: "clientOpen",
         address: pigeon.address,
@@ -119,11 +133,7 @@ export class PigeonRoom {
               .map((p) => p.id),
           ],
         },
-        to: [
-          ...this.pigeons
-            .filter((p) => p.id !== pigeon.id && p.address === pigeon.address)
-            .map((p) => p.id),
-        ],
+        to: peers.map((p) => p.id),
         from: "host",
       });
     });
@@ -182,6 +192,7 @@ export class PigeonRoom {
           },
           payload,
           ver,
+          pigeon,
         );
         return;
       }
@@ -215,7 +226,7 @@ export class PigeonRoom {
 
       if (to.every((t) => t === "host")) {
         if (type === "ping") {
-          this.#pong([pigeon.id]);
+          this.#pong(pigeon);
           return;
         }
         return;
@@ -232,7 +243,7 @@ export class PigeonRoom {
             address: pigeon.address,
             to,
             from: pigeon.id,
-          });
+          }, pigeon);
           break;
         case 0:
           this.sendMsgV0({
@@ -240,7 +251,7 @@ export class PigeonRoom {
             address: pigeon.address,
             to,
             from: pigeon.id,
-          });
+          }, pigeon);
           break;
         default:
           this.sendMsgV0({
@@ -248,7 +259,7 @@ export class PigeonRoom {
             address: pigeon.address,
             to,
             from: pigeon.id,
-          });
+          }, pigeon);
       }
     });
 
@@ -259,7 +270,8 @@ export class PigeonRoom {
       // every pigeon sharing that id (including a freshly-reconnected
       // one) was evicted from the list.
       this.pigeons = this.pigeons.filter((c) => c !== pigeon);
-      this.sendMsg({
+      const peers = this.#peersOf(pigeon);
+      this.#sendTo(peers, {
         ver: FORMAT_VERSION,
         type: "clientClose",
         body: {
@@ -271,16 +283,21 @@ export class PigeonRoom {
           ],
         },
         address: pigeon.address,
-        to: [
-          ...this.pigeons
-            .filter((p) => p.id !== pigeon.id && p.address === pigeon.address)
-            .map((p) => p.id),
-        ],
+        to: peers.map((p) => p.id),
         from: "host",
       });
     });
 
     return pigeon;
+  }
+
+  // Every other connection in a pigeon's address. Chosen by connection, not by
+  // id: a connection sharing the pigeon's id is a peer too, and is told when
+  // it joins and leaves.
+  #peersOf(pigeon: Pigeon): Pigeon[] {
+    return this.pigeons.filter(
+      (p) => p !== pigeon && p.address === pigeon.address,
+    );
   }
 
   /**
@@ -309,19 +326,43 @@ export class PigeonRoom {
   }
 
   // Send a v1 text message. timestamp is always set by the room.
-  sendMsg(msg: Omit<NoIndex<ReceivedTextMessage>, "timestamp">): void {
+  // `sender` is the connection a relayed message came from: "others" then
+  // excludes that connection alone, rather than every connection holding its
+  // id.
+  sendMsg(
+    msg: Omit<NoIndex<ReceivedTextMessage>, "timestamp">,
+    sender?: Pigeon,
+  ): void {
     const { address, from, to } = msg;
-    const targetPigeons = this.#resolveTargets(address, from, to as string[]);
+    const targetPigeons = this.#resolveTargets(
+      address,
+      from,
+      to as string[],
+      sender,
+    );
     this.#deliver(
       targetPigeons,
       JSON.stringify({ ...msg, timestamp: Date.now() }),
     );
   }
 
+  // Send a v1 text message to exactly these connections, whatever else holds
+  // their ids. timestamp is always set by the room.
+  #sendTo(
+    targets: Pigeon[],
+    msg: Omit<NoIndex<ReceivedTextMessage>, "timestamp">,
+  ): void {
+    this.#deliver(targets, JSON.stringify({ ...msg, timestamp: Date.now() }));
+  }
+
   // Send a v0 text message (no ver field). timestamp is always set by the room.
-  sendMsgV0(msg: Omit<ReceivedTextMessageV0, "timestamp">): void {
+  // `sender` as in sendMsg.
+  sendMsgV0(
+    msg: Omit<ReceivedTextMessageV0, "timestamp">,
+    sender?: Pigeon,
+  ): void {
     const { address, from, to } = msg;
-    const targetPigeons = this.#resolveTargets(address, from, to);
+    const targetPigeons = this.#resolveTargets(address, from, to, sender);
     this.#deliver(
       targetPigeons,
       JSON.stringify({ ...msg, timestamp: Date.now() }),
@@ -330,15 +371,21 @@ export class PigeonRoom {
 
   /**
    * Send a binary frame (v1+). The frame is rebuilt so that from / address /
-   * timestamp are authoritatively set by the host.
+   * timestamp are authoritatively set by the host. `sender` as in sendMsg.
    */
   sendBinary(
     msg: NoIndex<BinaryFrameHeader> & { from: string; address: string },
     payload: Uint8Array,
     version?: number,
+    sender?: Pigeon,
   ): void {
     const { address, from, to } = msg;
-    const targetPigeons = this.#resolveTargets(address, from, to as string[]);
+    const targetPigeons = this.#resolveTargets(
+      address,
+      from,
+      to as string[],
+      sender,
+    );
     // Nothing to relay to — skip building the frame. The payload can be large
     // (e.g. ~100 KB depth frames at 30 Hz), so avoid the allocation + copy
     // when no recipient would receive it.
@@ -368,30 +415,32 @@ export class PigeonRoom {
     }
   }
 
-  #resolveTargets(address: string, from: string, to: string[]): Pigeon[] {
+  // Targets are connections, never ids: every connection holding a target id
+  // receives. `this.pigeons` lists a connection once, so there is nothing to
+  // dedupe.
+  #resolveTargets(
+    address: string,
+    from: string,
+    to: string[],
+    sender?: Pigeon,
+  ): Pigeon[] {
     const clientsInTargetAddress = this.pigeons.filter(
       (p) => p.address === address || address === "all",
     );
 
-    const targetPigeons: Pigeon[] = [];
     if (to.includes("all") || to.includes("others")) {
       if (to.includes("all") || to.includes(from)) {
-        targetPigeons.push(...clientsInTargetAddress);
-      } else if (to.includes("others")) {
-        targetPigeons.push(
-          ...clientsInTargetAddress.filter((c) => c.id !== from),
-        );
+        return clientsInTargetAddress;
       }
-    } else {
-      targetPigeons.push(
-        ...clientsInTargetAddress.filter((c) => to.includes(c.id)),
+      // "others" excludes the sending connection, not its id: another
+      // connection holding the sender's id is one of the others. With no
+      // sending connection (the host, or an embedder speaking as an id), the
+      // id is all there is to exclude.
+      return clientsInTargetAddress.filter((c) =>
+        sender ? c !== sender : c.id !== from
       );
     }
-
-    return targetPigeons.reduce<Pigeon[]>((prev, cur) => {
-      if (!prev.map((p) => p.id).includes(cur.id)) prev.push(cur);
-      return prev;
-    }, []);
+    return clientsInTargetAddress.filter((c) => to.includes(c.id));
   }
 
   #ping() {
@@ -405,10 +454,10 @@ export class PigeonRoom {
     });
   }
 
-  #pong(to: string[]) {
-    this.sendMsg({
+  #pong(pigeon: Pigeon) {
+    this.#sendTo([pigeon], {
       ver: FORMAT_VERSION,
-      to,
+      to: [pigeon.id],
       type: "pong",
       address: "all",
       body: "",
