@@ -22,7 +22,6 @@ if (baseUrl === null) {
 }
 
 let myId: string = "";
-let othersids: string[] = [];
 
 const getSelectedTo = (): string[] => {
   const inputs = document.querySelectorAll<HTMLInputElement>(
@@ -173,7 +172,6 @@ addEventListener("load", () => {
       if (addressElem) addressElem.innerText = `address: ${address}`;
       const myIdElem = document.querySelector<HTMLParagraphElement>("p#myid");
       myId = msg.body.id;
-      othersids = msg.body.clients.filter((otherId) => otherId !== myId);
       setOthers(msg.body.clients);
       if (myIdElem) myIdElem.innerText = `my id: ${myId}`;
       const titleElement = document.querySelector<HTMLTitleElement>("title");
@@ -187,7 +185,6 @@ addEventListener("load", () => {
       clients: string[];
     }>({ type: /clientOpen|clientClose/ }, (msg) => {
       writeReceiveLog(msg);
-      othersids = msg.body.clients.filter((otherId) => otherId !== myId);
       setOthers(msg.body.clients);
     });
 
@@ -246,7 +243,7 @@ const setOthers = (clients: string[]): void => {
       optionElement.append(inputElement, labelElement);
       selectElement.append(optionElement);
     });
-    othersElem.innerText = `others ids: ${JSON.stringify(othersids)}`;
+    othersElem.innerText = `clients: ${JSON.stringify(clients)}`;
   }
 };
 
