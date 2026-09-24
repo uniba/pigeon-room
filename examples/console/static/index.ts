@@ -210,7 +210,8 @@ addEventListener("load", () => {
 
 // `clients` is the room's list: an id once per connection holding it. A
 // recipient is an id, so an id held by more than one connection is offered
-// once, marked with how many connections hold it. Me first.
+// once, as "all <id> (n)": the connections need not be one person, and a
+// message to the id reaches every one of them. Me first.
 const setOthers = (clients: string[]): void => {
   const selectElement = document.querySelector<HTMLUListElement>(
     "ul#to_selector",
@@ -238,13 +239,20 @@ const setOthers = (clients: string[]): void => {
       inputElement.setAttribute("name", "to");
       const labelElement = document.createElement("label");
       labelElement.setAttribute("for", `selection_${index}`);
-      labelElement.textContent = (targetId == myId ? "me" : targetId) +
-        (count > 1 ? ` ×${count}` : "");
+      labelElement.textContent = chipLabel(targetId, count);
       optionElement.append(inputElement, labelElement);
       selectElement.append(optionElement);
     });
     othersElem.innerText = `clients: ${JSON.stringify(clients)}`;
   }
+};
+
+// "pipo" / "me" for one connection; "all pipo (3)" for three, or
+// "all pipo (me + 2)" when one of them is mine.
+const chipLabel = (targetId: string, count: number): string => {
+  if (count <= 1) return targetId == myId ? "me" : targetId;
+  const n = targetId == myId ? `me + ${count - 1}` : `${count}`;
+  return `all ${targetId} (${n})`;
 };
 
 const appendLog = (logElement: HTMLLIElement) => {
