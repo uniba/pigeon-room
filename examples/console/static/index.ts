@@ -22,7 +22,6 @@ if (baseUrl === null) {
 }
 
 let myId: string = "";
-let othersids: string[] = [];
 
 const getSelectedTo = (): string[] => {
   const inputs = document.querySelectorAll<HTMLInputElement>(
@@ -173,8 +172,7 @@ addEventListener("load", () => {
       if (addressElem) addressElem.innerText = `address: ${address}`;
       const myIdElem = document.querySelector<HTMLParagraphElement>("p#myid");
       myId = msg.body.id;
-      othersids = msg.body.clients.filter((otherId) => otherId !== myId);
-      setOthers([myId, ...othersids]);
+      setOthers(msg.body.clients);
       if (myIdElem) myIdElem.innerText = `my id: ${myId}`;
       const titleElement = document.querySelector<HTMLTitleElement>("title");
       if (titleElement) {
@@ -187,8 +185,7 @@ addEventListener("load", () => {
       clients: string[];
     }>({ type: /clientOpen|clientClose/ }, (msg) => {
       writeReceiveLog(msg);
-      othersids = msg.body.clients.filter((otherId) => otherId !== myId);
-      setOthers([myId, ...othersids]);
+      setOthers(msg.body.clients);
     });
 
     pigeon.onReceiveMessage<"">({ type: /ping|pong/ }, (msg) => {
@@ -211,7 +208,11 @@ addEventListener("load", () => {
   }
 });
 
-const setOthers = (ids: string[]): void => {
+// `clients` is the room's list: an id once per connection holding it. A
+// recipient is an id, so an id held by more than one connection is offered
+// once, as "all <id> (n)": the connections need not be one person, and a
+// message to the id reaches every one of them. Me first.
+const setOthers = (clients: string[]): void => {
   const selectElement = document.querySelector<HTMLUListElement>(
     "ul#to_selector",
   );
@@ -219,28 +220,39 @@ const setOthers = (ids: string[]): void => {
     "p#othersid",
   );
 
-  ids = ["all", "others", ...ids];
+  const holders = new Map<string, number>([["all", 1], ["others", 1], [
+    myId,
+    0,
+  ]]);
+  for (const id of clients) holders.set(id, (holders.get(id) ?? 0) + 1);
 
   if (selectElement && othersElem) {
     selectElement.innerHTML = "";
-    ids.forEach(
-      (targetId) => {
-        const optionElement = document.createElement("li");
-        const inputElement = document.createElement("input");
-        inputElement.innerText = targetId;
-        inputElement.setAttribute("type", "checkbox");
-        inputElement.setAttribute("value", targetId);
-        inputElement.setAttribute("id", `selection_${targetId}`);
-        inputElement.setAttribute("name", "to");
-        const labelElement = document.createElement("label");
-        labelElement.setAttribute("for", `selection_${targetId}`);
-        labelElement.innerHTML = targetId == myId ? "me" : targetId;
-        optionElement.append(inputElement, labelElement);
-        selectElement.append(optionElement);
-      },
-    );
-    othersElem.innerText = `others ids: ${JSON.stringify(othersids)}`;
+    [...holders].forEach(([targetId, count], index) => {
+      const optionElement = document.createElement("li");
+      const inputElement = document.createElement("input");
+      inputElement.setAttribute("type", "checkbox");
+      inputElement.setAttribute("value", targetId);
+      // The DOM id is the position, not the client id: the client id is
+      // chosen by the client and can repeat or hold any character.
+      inputElement.setAttribute("id", `selection_${index}`);
+      inputElement.setAttribute("name", "to");
+      const labelElement = document.createElement("label");
+      labelElement.setAttribute("for", `selection_${index}`);
+      labelElement.textContent = chipLabel(targetId, count);
+      optionElement.append(inputElement, labelElement);
+      selectElement.append(optionElement);
+    });
+    othersElem.innerText = `clients: ${JSON.stringify(clients)}`;
   }
+};
+
+// "pipo" / "me" for one connection; "all pipo (3)" for three, or
+// "all pipo (me + 2)" when one of them is mine.
+const chipLabel = (targetId: string, count: number): string => {
+  if (count <= 1) return targetId == myId ? "me" : targetId;
+  const n = targetId == myId ? `me + ${count - 1}` : `${count}`;
+  return `all ${targetId} (${n})`;
 };
 
 const appendLog = (logElement: HTMLLIElement) => {
@@ -283,7 +295,14 @@ const writeSentLog = (
 };
 
 const writeReceiveLog = (
-  msg: { type: string; from?: unknown; to?: unknown; body?: unknown; timestamp?: number; payloadMeta?: unknown } & Record<string, unknown>,
+  msg: {
+    type: string;
+    from?: unknown;
+    to?: unknown;
+    body?: unknown;
+    timestamp?: number;
+    payloadMeta?: unknown;
+  } & Record<string, unknown>,
   payload?: Uint8Array,
 ) => {
   const { type, from, to, body, timestamp, payloadMeta } = msg;
@@ -291,13 +310,17 @@ const writeReceiveLog = (
   const bodyString = JSON.stringify(body);
 
   let attachmentHtml = "";
-  if (payload && payloadMeta && typeof payloadMeta === "object" && "name" in payloadMeta) {
+  if (
+    payload && payloadMeta && typeof payloadMeta === "object" &&
+    "name" in payloadMeta
+  ) {
     const meta = payloadMeta as Partial<FileMeta>;
     const fileName = meta.name ?? "download";
     const mimeType = meta.mimeType ?? "application/octet-stream";
     const blob = new Blob([payload.slice()], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    attachmentHtml = `<p class="message_body payload_line">payload: <a class="download_link" href="${url}" download="${fileName}">⬇ ${fileName}</a> &nbsp;<span class="file_meta">${mimeType} · ${payload.byteLength.toLocaleString()}B</span></p>`;
+    attachmentHtml =
+      `<p class="message_body payload_line">payload: <a class="download_link" href="${url}" download="${fileName}">⬇ ${fileName}</a> &nbsp;<span class="file_meta">${mimeType} · ${payload.byteLength.toLocaleString()}B</span></p>`;
   }
 
   const msgLi = document.createElement("li");
